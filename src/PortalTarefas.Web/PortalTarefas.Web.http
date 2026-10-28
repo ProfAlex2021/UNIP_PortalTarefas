@@ -1,0 +1,63 @@
+# Requisições do Roteiro 1 — execute pelo Visual Studio 2026 (botão "Enviar solicitação")
+# ou pelo VS Code com a extensão REST Client. Inicie antes o perfil "https".
+@host = https://localhost:7260
+
+### 1. Listar todas as tarefas (200)
+GET {{host}}/api/tarefas
+
+### 2. Filtro por query string + cabeçalho opcional de cliente (200)
+GET {{host}}/api/tarefas?situacao=Pendente&busca=relat
+X-Cliente-Id: navegador-aluno
+
+### 3. Situação inválida na query string (400)
+GET {{host}}/api/tarefas?situacao=Inexistente
+
+### 4. Id válido pela rota (200)
+GET {{host}}/api/tarefas/1
+
+### 5. Id inexistente (404 Problem Details)
+GET {{host}}/api/tarefas/999
+
+### 6. Id inválido: zero (400 Problem Details)
+GET {{host}}/api/tarefas/0
+
+### 7. Cadastro com corpo JSON válido (201 + Location)
+POST {{host}}/api/tarefas
+Content-Type: application/json
+
+{
+  "titulo": "Preparar apresentação",
+  "descricao": "Slides do Roteiro 1"
+}
+
+### 8. Cadastro inválido: título vazio (400 com erros de validação)
+POST {{host}}/api/tarefas
+Content-Type: application/json
+
+{
+  "titulo": "",
+  "descricao": "Sem título"
+}
+
+### 9. Diagnóstico — versão Minimal API
+GET {{host}}/api/diagnostico/minimal
+
+### 10. Diagnóstico — versão MVC (controller)
+GET {{host}}/api/diagnostico/mvc
+
+### 11. Exceção controlada pelo middleware (500 sem detalhes internos)
+GET {{host}}/api/diagnostico/erro
+
+### 12. CORS — preflight da origem autorizada (deve devolver Access-Control-Allow-Origin)
+OPTIONS {{host}}/api/tarefas
+Origin: http://localhost:5173
+Access-Control-Request-Method: GET
+
+### 13. CORS — origem NÃO autorizada (sem Access-Control-Allow-Origin)
+OPTIONS {{host}}/api/tarefas
+Origin: http://site-malicioso.exemplo
+Access-Control-Request-Method: GET
+
+### 14. Identificador de correlação enviado pelo cliente é devolvido na resposta
+GET {{host}}/api/tarefas/1
+X-Correlation-Id: aula-roteiro-01-teste
