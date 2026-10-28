@@ -1,9 +1,13 @@
 using System.Text.Encodings.Web;
+using System.Text.Json.Serialization;
 using System.Text.Unicode;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.WebEncoders;
+using PortalTarefas.Web.Api;
+using PortalTarefas.Web.Api.V1;
 using PortalTarefas.Web.Dados;
+using Scalar.AspNetCore;
 using PortalTarefas.Web.Endpoints;
 using PortalTarefas.Web.Filtros;
 using PortalTarefas.Web.Infraestrutura;
@@ -19,8 +23,27 @@ var builder = WebApplication.CreateBuilder(args);
 // ---------------------------------------------------------------------------
 
 // Problem Details (RFC 9457) como formato padrão de erro + tratador global.
-builder.Services.AddProblemDetails();
+// Toda resposta de erro recebe o identificador de correlação (extensão útil e não sensível).
+builder.Services.AddProblemDetails(opcoes =>
+    opcoes.CustomizeProblemDetails = contexto =>
+    {
+        contexto.ProblemDetails.Extensions.TryAdd("correlationId", contexto.HttpContext.TraceIdentifier);
+        if (contexto.ProblemDetails is HttpValidationProblemDetails validacao)
+            ProblemDetailsPadronizados.AjustarValidacao(validacao);
+    });
 builder.Services.AddExceptionHandler<TratadorExcecoesGlobal>();
+
+// JSON da API: enums como texto ("Pendente" em vez de 0), mais legível e estável para clientes.
+// NumberHandling.Strict: números só como números — o OpenAPI passa a descrevê-los como "integer"
+// (o padrão da Web aceita "42" como texto e gera o tipo integer|string no documento).
+builder.Services.ConfigureHttpJsonOptions(opcoes =>
+{
+    opcoes.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    opcoes.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
+
+// Documento OpenAPI (Roteiro 4): /openapi/v1.json, também gerado no build em contratos/.
+builder.Services.AddDocumentacaoOpenApi();
 
 // Validação automática de Data Annotations nos parâmetros das Minimal APIs (.NET 10).
 builder.Services.AddValidation();
@@ -56,6 +79,7 @@ builder.Services.AddScoped<ITarefaService, TarefaServiceEf>();
 builder.Services.AddScoped<ValidadorTituloUnico>();
 builder.Services.AddScoped<IConsultaPainel, ConsultaPainelEf>();
 builder.Services.AddScoped<IConsultaPainel, ConsultaPainelDapper>();
+builder.Services.AddScoped<TarefasApiServico>();
 
 // Política CORS nomeada: somente a origem do front-end local é aceita.
 const string PoliticaCorsFrontend = "FrontendLocal";
@@ -66,7 +90,7 @@ builder.Services.AddCors(opcoes =>
         .WithOrigins(origensPermitidas)
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .WithExposedHeaders(CorrelacaoMiddleware.NomeCabecalho));
+        .WithExposedHeaders(CorrelacaoMiddleware.NomeCabecalho, "X-Total-Count", "Link", "Location"));
 });
 
 var app = builder.Build();
@@ -115,6 +139,16 @@ app.UseRouting();
 app.UseCors(PoliticaCorsFrontend);
 
 // (9) Endpoints.
+// API REST v1 (Roteiro 4) — contrato em docs/contrato-api-v1.md.
+app.MapTarefasApiV1();
+
+// Documento OpenAPI e interface interativa (Scalar) somente em desenvolvimento.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();                   // /openapi/v1.json
+    app.MapScalarApiReference();        // /scalar
+}
+
 // Endpoints de API do Roteiro 1, mantidos em um grupo próprio (/api).
 var api = app.MapGroup("/api");
 api.MapTarefasEndpoints();

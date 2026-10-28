@@ -21,7 +21,7 @@ public class PipelineEEndpointsTests(FabricaPortal fabrica)
         var resposta = await _cliente.GetAsync("/api/tarefas/1");
 
         Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
-        var tarefa = await resposta.Content.ReadFromJsonAsync<TarefaDto>();
+        var tarefa = await resposta.Content.ReadFromJsonAsync<TarefaDto>(Json.Opcoes);
         Assert.Equal(1, tarefa!.Id);
     }
 
@@ -43,7 +43,7 @@ public class PipelineEEndpointsTests(FabricaPortal fabrica)
         requisicao.Headers.Add("X-Cliente-Id", "teste-automatizado");
 
         var resposta = await _cliente.SendAsync(requisicao);
-        var tarefas = await resposta.Content.ReadFromJsonAsync<List<TarefaDto>>();
+        var tarefas = await resposta.Content.ReadFromJsonAsync<List<TarefaDto>>(Json.Opcoes);
 
         Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
         Assert.NotEmpty(tarefas!);
@@ -66,7 +66,7 @@ public class PipelineEEndpointsTests(FabricaPortal fabrica)
         var corpo = await resposta.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, resposta.StatusCode);
-        Assert.Contains("Titulo", corpo);
+        Assert.Contains("\"titulo\"", corpo);
     }
 
     [Fact]

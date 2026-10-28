@@ -110,6 +110,15 @@ public sealed class TarefaServiceEmMemoria : ITarefaService
         }
     }
 
+    public Task<bool> ExcluirAsync(int id, CancellationToken cancelamento = default)
+    {
+        lock (_trava)
+        {
+            _eventos.RemoveAll(e => e.TarefaId == id);
+            return Task.FromResult(_tarefas.RemoveAll(t => t.Id == id) > 0);
+        }
+    }
+
     public Task<bool> ExisteTituloEmAbertoAsync(string titulo, int? ignorarId, CancellationToken cancelamento = default)
     {
         lock (_trava)

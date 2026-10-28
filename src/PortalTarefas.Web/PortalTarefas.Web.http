@@ -61,3 +61,74 @@ Access-Control-Request-Method: GET
 ### 14. Identificador de correlação enviado pelo cliente é devolvido na resposta
 GET {{host}}/api/tarefas/1
 X-Correlation-Id: aula-roteiro-01-teste
+
+# =====================================================================
+# Roteiro 4 — API REST v1 (contrato em docs/contrato-api-v1.md)
+# Documento OpenAPI: {{host}}/openapi/v1.json   Interface: {{host}}/scalar
+# =====================================================================
+
+### 15. Listagem paginada com ordenação (200 + X-Total-Count + Link)
+GET {{host}}/api/v1/tarefas?pagina=1&tamanho=2&ordenarPor=prazo&direcao=desc
+
+### 16. Combinação de dois filtros
+GET {{host}}/api/v1/tarefas?situacao=Pendente&prioridade=Alta
+
+### 17. Página vazia (200, itens = [])
+GET {{host}}/api/v1/tarefas?pagina=999
+
+### 18. Limites de paginação e campo de ordenação não permitido (400)
+GET {{host}}/api/v1/tarefas?tamanho=51&ordenarPor=senha
+
+### 19. Cadastro (201 + Location)
+# @name criada
+POST {{host}}/api/v1/tarefas
+Content-Type: application/json
+
+{
+  "titulo": "Documentar a API v1",
+  "prioridade": "Media"
+}
+
+### 20. Validação: prioridade Alta sem prazo (400)
+POST {{host}}/api/v1/tarefas
+Content-Type: application/json
+
+{
+  "titulo": "Urgente sem prazo",
+  "prioridade": "Alta"
+}
+
+### 21. Obter a tarefa criada
+GET {{host}}/api/v1/tarefas/{{criada.response.body.$.id}}
+
+### 22. Atualizar com a versão recebida (200, nova versão)
+PUT {{host}}/api/v1/tarefas/{{criada.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "titulo": "Documentar a API v1 (revisado)",
+  "descricao": null,
+  "prioridade": "Media",
+  "prazo": null,
+  "situacao": "EmAndamento",
+  "versao": "{{criada.response.body.$.versao}}"
+}
+
+### 23. Repetir o PUT com a versão ANTIGA (409 Problem Details com versaoAtual)
+PUT {{host}}/api/v1/tarefas/{{criada.response.body.$.id}}
+Content-Type: application/json
+
+{
+  "titulo": "Edição concorrente",
+  "descricao": null,
+  "prioridade": "Baixa",
+  "prazo": null,
+  "situacao": "Pendente",
+  "versao": "{{criada.response.body.$.versao}}"
+}
+
+### 24. Recurso inexistente (404)
+GET {{host}}/api/v1/tarefas/999999
+
+### 25. Excluir (204)
+DELETE {{host}}/api/v1/tarefas/{{criada.response.body.$.id}}

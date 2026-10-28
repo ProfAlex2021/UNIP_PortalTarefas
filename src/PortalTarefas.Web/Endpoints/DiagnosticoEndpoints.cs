@@ -11,7 +11,7 @@ public static class DiagnosticoEndpoints
 {
     public static IEndpointRouteBuilder MapDiagnosticoEndpoints(this IEndpointRouteBuilder rotas)
     {
-        var grupo = rotas.MapGroup("/diagnostico").WithTags("Diagnóstico");
+        var grupo = rotas.MapGroup("/diagnostico").WithTags("Diagnóstico").ExcludeFromDescription();
 
         grupo.MapGet("/minimal", (IWebHostEnvironment ambiente) => TypedResults.Ok(new DiagnosticoResposta(
             "Minimal API",

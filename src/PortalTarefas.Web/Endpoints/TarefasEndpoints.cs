@@ -15,11 +15,12 @@ public static class TarefasEndpoints
 {
     public static IEndpointRouteBuilder MapTarefasEndpoints(this IEndpointRouteBuilder rotas)
     {
-        var grupo = rotas.MapGroup("/tarefas").WithTags("Tarefas");
+        // Legado do Roteiro 1: mantido para comparação, fora do documento OpenAPI (a API oficial é a v1).
+        var grupo = rotas.MapGroup("/tarefas").WithTags("Roteiro 1").ExcludeFromDescription();
 
-        grupo.MapGet("/", Listar).WithName("ListarTarefas");
-        grupo.MapGet("/{id:int}", ObterPorId).WithName("ObterTarefa");
-        grupo.MapPost("/", Cadastrar).WithName("CadastrarTarefa");
+        grupo.MapGet("/", Listar).WithName("R1_ListarTarefas");
+        grupo.MapGet("/{id:int}", ObterPorId).WithName("R1_ObterTarefa");
+        grupo.MapPost("/", Cadastrar).WithName("R1_CadastrarTarefa");
 
         return rotas;
     }

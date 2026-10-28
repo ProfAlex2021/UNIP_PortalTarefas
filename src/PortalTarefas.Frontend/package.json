@@ -1,0 +1,17 @@
+{
+  "name": "portaltarefas-frontend",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "description": "Cliente TypeScript gerado a partir do contrato OpenAPI do Portal de Tarefas (Roteiro 4).",
+  "scripts": {
+    "gerar-cliente": "dotnet tool restore && dotnet nswag run nswag.json",
+    "chamada-real": "node scripts/com-certificado-dev.mjs tsx scripts/chamada-real.ts",
+    "verificar-tipos": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.8.3"
+  }
+}

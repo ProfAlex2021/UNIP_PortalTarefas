@@ -8,6 +8,7 @@ namespace PortalTarefas.Web.Controllers;
 /// GET /api/diagnostico/minimal. Serve para comparar as duas abordagens.
 /// </summary>
 [ApiController]
+[ApiExplorerSettings(IgnoreApi = true)] // endpoint de comparação do Roteiro 1, fora do OpenAPI
 [Route("api/diagnostico")]
 public sealed class DiagnosticoController(IWebHostEnvironment ambiente) : ControllerBase
 {

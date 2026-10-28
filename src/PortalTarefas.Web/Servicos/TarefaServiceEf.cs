@@ -103,6 +103,14 @@ public sealed class TarefaServiceEf(
         }
     }
 
+    public async Task<bool> ExcluirAsync(int id, CancellationToken cancelamento = default)
+    {
+        // ExecuteDeleteAsync gera um único DELETE no banco, sem carregar a entidade.
+        // Os eventos de auditoria são removidos pela FK com ON DELETE CASCADE.
+        var excluidas = await db.Tarefas.Where(t => t.Id == id).ExecuteDeleteAsync(cancelamento);
+        return excluidas > 0;
+    }
+
     public Task<bool> ExisteTituloEmAbertoAsync(string titulo, int? ignorarId, CancellationToken cancelamento = default)
     {
         var normalizado = titulo.Trim();

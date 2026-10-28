@@ -42,6 +42,9 @@ public interface ITarefaService
     Task<ResultadoOperacao> AlterarSituacaoAsync(int id, SituacaoTarefa novaSituacao, string? observacao,
         CancellationToken cancelamento = default);
 
+    /// <summary>Exclui a tarefa e seus eventos. Devolve false se ela não existir.</summary>
+    Task<bool> ExcluirAsync(int id, CancellationToken cancelamento = default);
+
     Task<bool> ExisteTituloEmAbertoAsync(string titulo, int? ignorarId, CancellationToken cancelamento = default);
     Task<IReadOnlyList<Tarefa>> ListarVencidasAsync(DateOnly hoje, CancellationToken cancelamento = default);
     Task<IReadOnlyList<EventoAuditoria>> ListarEventosAsync(int tarefaId, CancellationToken cancelamento = default);
