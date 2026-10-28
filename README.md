@@ -16,6 +16,7 @@ git diff roteiro-02 roteiro-03 --stat   # o que mudou de um roteiro para o outro
 | 2 | Controllers, validação, filtros e interfaces Razor reutilizáveis | [docs/roteiros/roteiro-02.md](docs/roteiros/roteiro-02.md) |
 | 3 | EF Core, migrations, seed, pooling, transações, concorrência e acesso leve | [docs/roteiros/roteiro-03.md](docs/roteiros/roteiro-03.md) |
 | 4 | Recursos REST, paginação, filtros, Problem Details, OpenAPI e cliente TypeScript | [docs/roteiros/roteiro-04.md](docs/roteiros/roteiro-04.md) |
+| 5 | Front-end React consumindo a API com estados de requisição e roteamento | [docs/roteiros/roteiro-05.md](docs/roteiros/roteiro-05.md) |
 
 ## Ambiente
 
