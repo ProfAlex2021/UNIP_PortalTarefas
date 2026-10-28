@@ -1,0 +1,34 @@
+@model TarefaInputModel
+@* Campos compartilhados por Create e Edit: os Tag Helpers geram name, id, value,
+   atributos de validação e mensagens a partir das Data Annotations do modelo. *@
+<div asp-validation-summary="ModelOnly" class="erros"></div>
+
+<div class="campo">
+    <label asp-for="Titulo"></label>
+    <input asp-for="Titulo" />
+    <span asp-validation-for="Titulo" class="erro"></span>
+</div>
+
+<div class="campo">
+    <label asp-for="Descricao"></label>
+    <textarea asp-for="Descricao" rows="4"></textarea>
+    <span asp-validation-for="Descricao" class="erro"></span>
+</div>
+
+<div class="campo">
+    <label asp-for="Prioridade"></label>
+    <select asp-for="Prioridade" asp-items="Html.GetEnumSelectList<PrioridadeTarefa>()"></select>
+    <span asp-validation-for="Prioridade" class="erro"></span>
+</div>
+
+<div class="campo">
+    <label asp-for="Prazo"></label>
+    <input asp-for="Prazo" type="date" />
+    <span asp-validation-for="Prazo" class="erro"></span>
+</div>
+
+<div class="campo">
+    <label asp-for="Situacao"></label>
+    <select asp-for="Situacao" asp-items="Html.GetEnumSelectList<SituacaoTarefa>()"></select>
+    <span asp-validation-for="Situacao" class="erro"></span>
+</div>

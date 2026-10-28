@@ -1,0 +1,12 @@
+@model TarefaInputModel
+@{
+    ViewData["Title"] = "Editar tarefa";
+    var id = ViewContext.RouteData.Values["id"];
+}
+<h1>Editar tarefa</h1>
+
+<form asp-action="Edit" asp-route-id="@id" method="post" novalidate>
+    <partial name="_Formulario" model="Model" />
+    <button type="submit">Salvar alterações</button>
+    <a asp-action="Details" asp-route-id="@id">Cancelar</a>
+</form>

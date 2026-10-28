@@ -1,6 +1,13 @@
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.WebEncoders;
 using PortalTarefas.Web.Endpoints;
+using PortalTarefas.Web.Filtros;
 using PortalTarefas.Web.Infraestrutura;
 using PortalTarefas.Web.Middlewares;
+using PortalTarefas.Web.Servicos;
+using PortalTarefas.Web.Validacao;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +22,22 @@ builder.Services.AddExceptionHandler<TratadorExcecoesGlobal>();
 // Validação automática de Data Annotations nos parâmetros das Minimal APIs (.NET 10).
 builder.Services.AddValidation();
 
-// Controllers usados na comparação Minimal API x MVC.
-builder.Services.AddControllers();
+// MVC com views (Roteiro 2). O antiforgery é validado automaticamente em todo POST de formulário.
+builder.Services.AddControllersWithViews(opcoes =>
+{
+    opcoes.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+});
+builder.Services.AddScoped<RegistrarExecucaoAcaoFilter>();
+
+// Razor codifica caracteres fora do ASCII por padrão (á vira &#xE1;). Liberamos o Unicode
+// para o HTML gerado ficar legível; a proteção contra XSS (<, >, ", &) continua ativa.
+builder.Services.Configure<WebEncoderOptions>(opcoes =>
+    opcoes.TextEncoderSettings = new TextEncoderSettings(UnicodeRanges.All));
+
+// Serviços da aplicação. O relógio é injetado para facilitar testes de datas.
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ITarefaService, TarefaServiceEmMemoria>();
+builder.Services.AddScoped<ValidadorTituloUnico>();
 
 // Política CORS nomeada: somente a origem do front-end local é aceita.
 const string PoliticaCorsFrontend = "FrontendLocal";
@@ -49,7 +70,7 @@ if (!app.Environment.IsDevelopment())
 // (3) Redireciona HTTP -> HTTPS.
 app.UseHttpsRedirection();
 
-// (4) Identificador de correlação (extensão do roteiro): todo log seguinte o carrega.
+// (4) Identificador de correlação: todo log seguinte o carrega.
 app.UseCorrelacao();
 
 // (5) Middleware próprio que registra método, caminho, status e duração.
@@ -64,9 +85,18 @@ app.UseRouting();
 // (8) CORS depois do roteamento e antes dos endpoints.
 app.UseCors(PoliticaCorsFrontend);
 
-// (9) Endpoints: Minimal APIs e controllers MVC.
-app.MapTarefasEndpoints();
-app.MapDiagnosticoEndpoints();
+// (9) Endpoints.
+// Endpoints de API do Roteiro 1, mantidos em um grupo próprio (/api).
+var api = app.MapGroup("/api");
+api.MapTarefasEndpoints();
+api.MapDiagnosticoEndpoints();
+
+// Controllers de API com rota por atributo (DiagnosticoController).
 app.MapControllers();
+
+// Rota convencional da interface MVC: /{controller}/{action}/{id?}
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();

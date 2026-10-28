@@ -1,0 +1,10 @@
+@{
+    ViewData["Title"] = "Início";
+}
+<h1>Portal de Tarefas</h1>
+<p>Interface MVC com Razor do Roteiro 2. Os endpoints de API do Roteiro 1 continuam ativos no grupo <code>/api</code>.</p>
+<ul>
+    <li><a asp-controller="Tarefas" asp-action="Index">Ver a lista de tarefas</a></li>
+    <li><a asp-controller="Tarefas" asp-action="Create">Cadastrar uma tarefa</a></li>
+    <li><a href="/api/tarefas">GET /api/tarefas</a> (Minimal API)</li>
+</ul>

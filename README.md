@@ -13,6 +13,7 @@ git diff roteiro-02 roteiro-03 --stat   # o que mudou de um roteiro para o outro
 | Roteiro | Tema | Guia |
 |---|---|---|
 | 1 | Pipeline HTTP, middleware, roteamento, binding, Minimal APIs x MVC | [docs/roteiros/roteiro-01.md](docs/roteiros/roteiro-01.md) |
+| 2 | Controllers, validação, filtros e interfaces Razor reutilizáveis | [docs/roteiros/roteiro-02.md](docs/roteiros/roteiro-02.md) |
 
 ## Ambiente
 

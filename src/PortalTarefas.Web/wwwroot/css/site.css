@@ -1,0 +1,59 @@
+:root {
+    --cor-primaria: #0b3d6e;
+    --cor-fundo: #f5f7fa;
+    --cor-borda: #d5dbe3;
+    --cor-erro: #b3261e;
+    --cor-alerta: #c25e00;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: #1d2733;
+    background: var(--cor-fundo);
+}
+
+body { margin: 0; }
+
+.topo {
+    display: flex; gap: 2rem; align-items: center;
+    padding: .75rem 1.5rem; background: var(--cor-primaria);
+}
+.topo a { color: #fff; text-decoration: none; }
+.topo nav { display: flex; gap: 1rem; }
+.marca { font-weight: 700; font-size: 1.2rem; }
+
+.conteudo {
+    display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 1.5rem;
+    max-width: 1100px; margin: 1.5rem auto; padding: 0 1rem;
+}
+@media (max-width: 800px) { .conteudo { grid-template-columns: 1fr; } }
+
+.rodape { text-align: center; padding: 1rem; color: #607080; font-size: .85rem; }
+
+.cartao {
+    background: #fff; border: 1px solid var(--cor-borda); border-radius: 8px;
+    padding: .75rem 1rem; margin-bottom: .75rem;
+}
+.cartao h3 { margin: 0 0 .4rem; font-size: 1.05rem; }
+.cartao.vencida { border-left: 4px solid var(--cor-alerta); }
+
+.etiquetas { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; }
+.etiqueta { background: #e8edf3; border-radius: 999px; padding: .1rem .6rem; font-size: .8rem; }
+.etiqueta.alerta { background: #ffe5cc; color: var(--cor-alerta); }
+.situacao-Concluida { background: #dff3e4; }
+.prioridade-Alta { background: #fde2e1; }
+
+.vencidas { background: #fff; border: 1px solid var(--cor-borda); border-radius: 8px; padding: 0 1rem 1rem; }
+.vencidas h2 { font-size: 1rem; }
+
+.filtros { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+
+.campo { display: flex; flex-direction: column; gap: .25rem; margin-bottom: 1rem; max-width: 480px; }
+input, select, textarea, button { font: inherit; padding: .4rem; }
+.erro, .erros { color: var(--cor-erro); font-size: .9rem; }
+.input-validation-error { border: 2px solid var(--cor-erro); }
+
+.botao, button {
+    background: var(--cor-primaria); color: #fff; border: 0; border-radius: 6px;
+    padding: .45rem 1rem; text-decoration: none; cursor: pointer; display: inline-block;
+}
+.mensagem { background: #dff3e4; border-radius: 6px; padding: .6rem 1rem; }
+.detalhes dt { font-weight: 600; }
+.detalhes dd { margin: 0 0 .75rem; }

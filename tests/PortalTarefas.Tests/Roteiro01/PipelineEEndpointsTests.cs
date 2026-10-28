@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using PortalTarefas.Web.Dominio;
 using PortalTarefas.Web.Modelos;
 
 namespace PortalTarefas.Tests.Roteiro01;

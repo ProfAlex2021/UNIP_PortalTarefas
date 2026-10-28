@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] — Portal de Tarefas</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topo">
+        <a class="marca" asp-controller="Home" asp-action="Index">Portal de Tarefas</a>
+        <nav aria-label="Navegação principal">
+            <a asp-controller="Home" asp-action="Index">Início</a>
+            <a asp-controller="Tarefas" asp-action="Index">Tarefas</a>
+            <a asp-controller="Tarefas" asp-action="Create">Nova tarefa</a>
+        </nav>
+    </header>
+
+    <div class="conteudo">
+        <main>
+            <partial name="_Mensagem" />
+            @RenderBody()
+        </main>
+        <aside aria-label="Tarefas vencidas">
+            @* View Component: busca os próprios dados, então nenhuma ação precisa prepará-los. *@
+            <vc:tarefas-vencidas maximo="5" />
+        </aside>
+    </div>
+
+    <footer class="rodape">Desenvolvimento Web com .NET — UNIP</footer>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,20 @@
+@model IReadOnlyList<TarefaResumoViewModel>
+<section class="vencidas">
+    <h2>Tarefas vencidas</h2>
+    @if (Model.Count == 0)
+    {
+        <p>Nenhuma tarefa vencida.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var tarefa in Model)
+            {
+                <li>
+                    <a asp-controller="Tarefas" asp-action="Details" asp-route-id="@tarefa.Id">@tarefa.Titulo</a>
+                    <small>(prazo @tarefa.Prazo?.ToString("dd/MM/yyyy"))</small>
+                </li>
+            }
+        </ul>
+    }
+</section>
