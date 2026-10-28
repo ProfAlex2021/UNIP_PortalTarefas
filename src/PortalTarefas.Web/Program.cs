@@ -12,12 +12,19 @@ using PortalTarefas.Web.Endpoints;
 using PortalTarefas.Web.Filtros;
 using PortalTarefas.Web.Infraestrutura;
 using PortalTarefas.Web.Middlewares;
+using PortalTarefas.Web.Capacidade;
+using PortalTarefas.Web.Observabilidade;
+using PortalTarefas.Web.Resiliencia;
+using PortalTarefas.Web.Saude;
 using PortalTarefas.Web.Seguranca;
 using PortalTarefas.Web.Servicos;
 using PortalTarefas.Web.Servicos.Painel;
 using PortalTarefas.Web.Validacao;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logs, métricas e traces com OpenTelemetry (Roteiro 7).
+builder.AddObservabilidade();
 
 // ---------------------------------------------------------------------------
 // 1. Registro de serviços (contêiner de injeção de dependência)
@@ -85,6 +92,12 @@ builder.Services.AddScoped<TarefasApiServico>();
 // Autenticação e autorização (Roteiro 6): Identity + cookie, papéis, claims e políticas.
 builder.Services.AddSegurancaPortal();
 
+// Roteiro 7: health checks, rate limiting, output caching e dependência HTTP resiliente.
+builder.Services.AddVerificacoesDeSaude();
+builder.Services.AddControlesDeCapacidade();
+builder.Services.AddClienteCalendario();
+builder.Services.AddSingleton<EstadoSimulacaoCalendario>();
+
 // Política CORS nomeada: somente a origem do front-end local é aceita.
 const string PoliticaCorsFrontend = "FrontendLocal";
 var origensPermitidas = builder.Configuration.GetSection("Cors:OrigensPermitidas").Get<string[]>() ?? [];
@@ -151,10 +164,22 @@ app.UseAuthorization();
 // (10) Proteção CSRF para chamadas à API que usam o cookie de sessão.
 app.UseMiddleware<ProtecaoCsrfMiddleware>();
 
-// (11) Endpoints.
+// (11) Rate limiting e output caching depois da autenticação: o cache precisa saber se a
+//      requisição é de um usuário autenticado (essas não são guardadas nem servidas do cache).
+app.UseRateLimiter();
+app.UseOutputCache();
+
+// (12) Endpoints.
 // API REST v1 (Roteiro 4) — contrato em docs/contrato-api-v1.md.
 app.MapTarefasApiV1();
 app.MapAutenticacao();
+app.MapCalendarioV1();
+app.MapPublico();
+app.MapVerificacoesDeSaude();               // /health/live e /health/ready
+
+// Dependência externa simulada (somente quando habilitada — Development).
+if (app.Configuration.GetValue<bool>("Simulacao:Habilitada"))
+    app.MapSimulacaoCalendario();
 
 // Documento OpenAPI e interface interativa (Scalar) somente em desenvolvimento.
 if (app.Environment.IsDevelopment())

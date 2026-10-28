@@ -18,6 +18,7 @@ git diff roteiro-02 roteiro-03 --stat   # o que mudou de um roteiro para o outro
 | 4 | Recursos REST, paginação, filtros, Problem Details, OpenAPI e cliente TypeScript | [docs/roteiros/roteiro-04.md](docs/roteiros/roteiro-04.md) |
 | 5 | Front-end React consumindo a API com estados de requisição e roteamento | [docs/roteiros/roteiro-05.md](docs/roteiros/roteiro-05.md) |
 | 6 | ASP.NET Core Identity, cookies, tokens bearer, JWT, roles, claims e rotas protegidas | [docs/roteiros/roteiro-06.md](docs/roteiros/roteiro-06.md) |
+| 7 | Logging, métricas, tracing, Health Checks, resiliência, rate limiting e output caching | [docs/roteiros/roteiro-07.md](docs/roteiros/roteiro-07.md) |
 
 ## Ambiente
 

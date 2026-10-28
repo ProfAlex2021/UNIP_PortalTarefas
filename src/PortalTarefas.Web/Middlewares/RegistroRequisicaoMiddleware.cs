@@ -15,13 +15,16 @@ public sealed class RegistroRequisicaoMiddleware(RequestDelegate proximo, ILogge
         var caminho = contexto.Request.Path.Value;
         var cronometro = Stopwatch.StartNew();
 
-        logger.LogInformation("--> Entrada {Metodo} {Caminho}", metodo, caminho);
+        // Roteiro 7: a entrada fica em Debug (útil só para depurar a ordem do pipeline);
+        // a saída, com status e duração, é o registro principal em Information.
+        logger.LogDebug("--> Entrada {Metodo} {Caminho}", metodo, caminho);
         try
         {
             await proximo(contexto);
-            logger.LogInformation(
+            var status = contexto.Response.StatusCode;
+            logger.Log(status >= 500 ? LogLevel.Error : status >= 400 ? LogLevel.Warning : LogLevel.Information,
                 "<-- Saída {Metodo} {Caminho} respondeu {Status} em {DuracaoMs:0.0} ms",
-                metodo, caminho, contexto.Response.StatusCode, cronometro.Elapsed.TotalMilliseconds);
+                metodo, caminho, status, cronometro.Elapsed.TotalMilliseconds);
         }
         catch
         {

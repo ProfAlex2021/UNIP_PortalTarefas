@@ -1,6 +1,10 @@
+using System.Diagnostics;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
+using PortalTarefas.Web.Capacidade;
 using PortalTarefas.Web.Dados;
 using PortalTarefas.Web.Dominio;
+using PortalTarefas.Web.Observabilidade;
 
 namespace PortalTarefas.Web.Servicos;
 
@@ -8,8 +12,14 @@ namespace PortalTarefas.Web.Servicos;
 public sealed class TarefaServiceEf(
     PortalTarefasDbContext db,
     TimeProvider relogio,
-    ILogger<TarefaServiceEf> logger) : ITarefaService
+    ILogger<TarefaServiceEf> logger,
+    Telemetria telemetria,
+    IOutputCacheStore cache) : ITarefaService
 {
+    // Roteiro 7: qualquer alteração invalida o resumo público do painel guardado no output cache.
+    private Task InvalidarCacheAsync(CancellationToken cancelamento) =>
+        cache.EvictByTagAsync(ConfiguracaoCapacidade.TagCacheTarefas, cancelamento).AsTask();
+
     public async Task<IReadOnlyList<Tarefa>> ListarAsync(FiltroTarefas filtro, CancellationToken cancelamento = default)
     {
         // Leitura sem rastreamento: as entidades não serão alteradas nesta requisição.
@@ -33,6 +43,10 @@ public sealed class TarefaServiceEf(
         tarefa.Eventos.Add(NovoEvento(0, "Criada", null));
         db.Tarefas.Add(tarefa);
         await db.SaveChangesAsync(cancelamento);
+
+        telemetria.TarefaCriada(tarefa.Prioridade);
+        logger.LogInformation("Tarefa {TarefaId} criada com prioridade {Prioridade}", tarefa.Id, tarefa.Prioridade);
+        await InvalidarCacheAsync(cancelamento);
         return tarefa;
     }
 
@@ -57,6 +71,7 @@ public sealed class TarefaServiceEf(
         try
         {
             await db.SaveChangesAsync(cancelamento);
+            await InvalidarCacheAsync(cancelamento);
             return new(ResultadoOperacao.Sucesso, entidade);
         }
         catch (DbUpdateConcurrencyException ex)
@@ -64,6 +79,7 @@ public sealed class TarefaServiceEf(
             // Estratégia explícita: o banco prevalece. Nada é sobrescrito; devolvemos os
             // valores atuais para o usuário revisar e decidir se salva novamente.
             var valoresNoBanco = await ex.Entries.Single(e => e.Entity is Tarefa).GetDatabaseValuesAsync(cancelamento);
+            telemetria.ConflitoDetectado();
             logger.LogWarning("Conflito de concorrência ao editar a tarefa {TarefaId}", alterada.Id);
 
             return valoresNoBanco is null
@@ -75,6 +91,14 @@ public sealed class TarefaServiceEf(
     public async Task<ResultadoOperacao> AlterarSituacaoAsync(int id, SituacaoTarefa novaSituacao, string? observacao,
         CancellationToken cancelamento = default)
     {
+        // Roteiro 7: span customizado + escopo de log + um único registro de início e de resultado.
+        using var span = Telemetria.Atividades.StartActivity("AlterarSituacaoTarefa");
+        span?.SetTag("tarefa.id", id);
+        span?.SetTag("tarefa.situacao.nova", novaSituacao.ToString());
+        using var escopo = logger.BeginScope("TarefaId:{TarefaId}", id);
+        var cronometro = Stopwatch.StartNew();
+        logger.LogInformation("Alteração de situação iniciada para {NovaSituacao}", novaSituacao);
+
         await using var transacao = await db.Database.BeginTransactionAsync(cancelamento);
         try
         {
@@ -92,13 +116,18 @@ public sealed class TarefaServiceEf(
             await db.SaveChangesAsync(cancelamento);            // 2ª gravação: a auditoria
 
             await transacao.CommitAsync(cancelamento);          // só agora as duas ficam visíveis
+            await InvalidarCacheAsync(cancelamento);
+            logger.LogInformation("Alteração de situação concluída ({Anterior} -> {Nova}) em {DuracaoMs:0.0} ms",
+                anterior, novaSituacao, cronometro.Elapsed.TotalMilliseconds);
             return ResultadoOperacao.Sucesso;
         }
         catch (Exception ex) when (ex is DbUpdateException or OperationCanceledException)
         {
             await transacao.RollbackAsync(CancellationToken.None);
             db.ChangeTracker.Clear();
-            logger.LogWarning("Transação de alteração de situação da tarefa {TarefaId} desfeita", id);
+            span?.SetStatus(ActivityStatusCode.Error, "transação desfeita");
+            logger.LogWarning("Transação de alteração de situação desfeita após {DuracaoMs:0.0} ms ({TipoErro})",
+                cronometro.Elapsed.TotalMilliseconds, ex.GetType().Name);
             throw;
         }
     }
@@ -108,6 +137,11 @@ public sealed class TarefaServiceEf(
         // ExecuteDeleteAsync gera um único DELETE no banco, sem carregar a entidade.
         // Os eventos de auditoria são removidos pela FK com ON DELETE CASCADE.
         var excluidas = await db.Tarefas.Where(t => t.Id == id).ExecuteDeleteAsync(cancelamento);
+        if (excluidas > 0)
+        {
+            logger.LogInformation("Tarefa {TarefaId} excluída", id);
+            await InvalidarCacheAsync(cancelamento);
+        }
         return excluidas > 0;
     }
 

@@ -44,8 +44,10 @@ public static class AutenticacaoEndpoints
             .WithName("Entrar")
             .WithSummary("Autentica com e-mail e senha e emite o cookie de sessão")
             .AllowAnonymous()
+            .RequireRateLimiting(Capacidade.ConfiguracaoCapacidade.PoliticaLogin) // Roteiro 7: limita força bruta
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         grupo.MapPost("/logout", Sair)
             .WithName("Sair")

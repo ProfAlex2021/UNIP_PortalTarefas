@@ -182,3 +182,28 @@ X-Requested-With: PortalTarefas
 ### 32. Logout (204) — depois disso, os itens acima respondem 401
 POST {{host}}/api/auth/logout
 X-Requested-With: PortalTarefas
+
+# =====================================================================
+# Roteiro 7 — Observabilidade, saúde, resiliência e capacidade
+# =====================================================================
+
+### 33. Liveness: o processo responde (não consulta dependências)
+GET {{host}}/health/live
+
+### 34. Readiness: banco e dependência essencial
+GET {{host}}/health/ready
+
+### 35. Simular dependência indisponível (só em Development) e repetir os itens 33 e 34
+POST {{host}}/simulacao/calendario/modo?modo=Indisponivel
+
+### 36. Simular 2 falhas transitórias (o retry absorve) e consultar feriados (precisa de login)
+POST {{host}}/simulacao/calendario/modo?modo=FalhaTransitoria&falhas=2
+
+### 37. Feriados pela dependência resiliente (200; ou 503 com o circuito aberto)
+GET {{host}}/api/v1/calendario/feriados/2026
+
+### 38. Voltar a dependência ao normal
+POST {{host}}/simulacao/calendario/modo?modo=Normal
+
+### 39. Leitura pública com output cache (repita: a 2ª resposta traz o cabeçalho Age)
+GET {{host}}/api/publico/painel

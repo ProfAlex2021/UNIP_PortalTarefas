@@ -1,10 +1,13 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using PortalTarefas.Web.Dados;
+using PortalTarefas.Web.Resiliencia;
 
 namespace PortalTarefas.Tests.Apoio;
 
@@ -59,11 +62,25 @@ public class FabricaPortal : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 ["ConnectionStrings:PortalTarefas"] = ConnectionString,
                 ["Banco:AplicarMigrationsNaInicializacao"] = "true",
+                // Roteiro 7: dependência simulada servida pelo próprio TestServer e limite de login folgado
+                // (vários testes fazem login). O teste de rate limiting usa uma fábrica com limite baixo.
+                ["Simulacao:Habilitada"] = "true",
+                ["Dependencias:Calendario:UrlBase"] = "https://localhost/simulacao/calendario/",
+                ["Limites:Login:PermitidasPorJanela"] = "1000",
             };
             foreach (var (perfil, senha) in _senhas)
                 valores[$"SeedUsuarios:{(int)perfil}:Senha"] = senha;
 
-            configuracao.AddInMemoryCollection(valores.Concat(ConfiguracoesAdicionais()));
+            configuracao.AddInMemoryCollection(valores);
+            configuracao.AddInMemoryCollection(ConfiguracoesAdicionais()); // camada posterior: sobrescreve
+        });
+
+        // Não existe servidor HTTP real nos testes: as chamadas à dependência simulada vão
+        // para o servidor em memória. O pipeline de resiliência continua o mesmo.
+        builder.ConfigureTestServices(servicos =>
+        {
+            servicos.AddHttpClient("calendario-saude").ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
+            servicos.AddHttpClient<ClienteCalendario>().ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
         });
     }
 

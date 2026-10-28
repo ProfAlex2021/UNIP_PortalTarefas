@@ -1,0 +1,14 @@
+# Extensão do Roteiro 7: painel local de observabilidade (Aspire Dashboard).
+# Recebe logs, métricas e traces via OTLP e os exibe em http://localhost:18888
+#
+#   docker compose -f docker-compose.observabilidade.yml up -d
+#   docker compose -f docker-compose.observabilidade.yml logs aspire-dashboard   # mostra o link com o token de acesso
+#
+# Depois rode a API apontando para o coletor (PowerShell):
+#   $env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"; dotnet run --project src/PortalTarefas.Web --launch-profile https
+services:
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.5
+    ports:
+      - "18888:18888"   # interface web
+      - "4317:18889"    # OTLP/gRPC

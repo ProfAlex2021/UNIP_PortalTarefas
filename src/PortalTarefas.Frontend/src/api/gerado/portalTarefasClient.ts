@@ -63,6 +63,18 @@ export interface IPortalTarefasClient {
      * @return OK
      */
     obterSessao(signal?: AbortSignal): Promise<Sessao>;
+
+    /**
+     * Feriados nacionais do ano, obtidos do serviço externo de calendário
+     * @return OK
+     */
+    obterFeriados(ano: number, signal?: AbortSignal): Promise<Feriado[]>;
+
+    /**
+     * Resumo agregado das tarefas em aberto (cache de 30 s)
+     * @return OK
+     */
+    obterResumoPublico(signal?: AbortSignal): Promise<ResumoPublico>;
 }
 
 export class PortalTarefasClient implements IPortalTarefasClient {
@@ -480,6 +492,12 @@ export class PortalTarefasClient implements IPortalTarefasClient {
             result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
             return throwException("Unauthorized", status, _responseText, _headers, result401);
             });
+        } else if (status === 429) {
+            return response.text().then((_responseText) => {
+            let result429: any = null;
+            result429 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Too Many Requests", status, _responseText, _headers, result429);
+            });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -560,12 +578,110 @@ export class PortalTarefasClient implements IPortalTarefasClient {
         }
         return Promise.resolve<Sessao>(null as any);
     }
+
+    /**
+     * Feriados nacionais do ano, obtidos do serviço externo de calendário
+     * @return OK
+     */
+    obterFeriados(ano: number, signal?: AbortSignal): Promise<Feriado[]> {
+        let url_ = this.baseUrl + "/api/v1/calendario/feriados/{ano}";
+        if (ano === undefined || ano === null)
+            throw new globalThis.Error("The parameter 'ano' must be defined.");
+        url_ = url_.replace("{ano}", encodeURIComponent("" + ano));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processObterFeriados(_response);
+        });
+    }
+
+    protected processObterFeriados(response: Response): Promise<Feriado[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Feriado[];
+            return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 503) {
+            return response.text().then((_responseText) => {
+            let result503: any = null;
+            result503 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Service Unavailable", status, _responseText, _headers, result503);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Feriado[]>(null as any);
+    }
+
+    /**
+     * Resumo agregado das tarefas em aberto (cache de 30 s)
+     * @return OK
+     */
+    obterResumoPublico(signal?: AbortSignal): Promise<ResumoPublico> {
+        let url_ = this.baseUrl + "/api/publico/painel";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processObterResumoPublico(_response);
+        });
+    }
+
+    protected processObterResumoPublico(response: Response): Promise<ResumoPublico> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ResumoPublico;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ResumoPublico>(null as any);
+    }
 }
 
 /** Credenciais de acesso. */
 export interface Credenciais {
     email: string;
     senha: string;
+
+    [key: string]: any;
+}
+
+export interface Feriado {
+    data: string;
+    nome: string;
 
     [key: string]: any;
 }
@@ -577,6 +693,15 @@ export interface HttpValidationProblemDetails {
     detail?: string | undefined;
     instance?: string | undefined;
     errors?: { [key: string]: string[]; };
+
+    [key: string]: any;
+}
+
+export interface LinhaPainel {
+    prioridade: PrioridadeTarefa;
+    abertas: number;
+    vencidas: number;
+    proximoPrazo: string | undefined;
 
     [key: string]: any;
 }
@@ -600,6 +725,14 @@ export interface ProblemDetails {
     status?: number | undefined;
     detail?: string | undefined;
     instance?: string | undefined;
+
+    [key: string]: any;
+}
+
+/** Resumo público e agregado das tarefas em aberto (sem dados pessoais). */
+export interface ResumoPublico {
+    linhas: LinhaPainel[];
+    geradoEm: string;
 
     [key: string]: any;
 }

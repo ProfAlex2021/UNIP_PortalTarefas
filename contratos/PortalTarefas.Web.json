@@ -483,6 +483,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -521,6 +531,84 @@
           }
         }
       }
+    },
+    "/api/v1/calendario/feriados/{ano}": {
+      "get": {
+        "tags": [
+          "Calendário"
+        ],
+        "summary": "Feriados nacionais do ano, obtidos do serviço externo de calendário",
+        "description": "Usa timeout, retry para falhas transitórias e circuit breaker. Se a dependência estiver indisponível, responde 503.",
+        "operationId": "ObterFeriados",
+        "parameters": [
+          {
+            "name": "ano",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Feriado"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/publico/painel": {
+      "get": {
+        "tags": [
+          "Público"
+        ],
+        "summary": "Resumo agregado das tarefas em aberto (cache de 30 s)",
+        "description": "Resposta guardada em output cache. 'geradoEm' mostra quando foi calculada; respostas servidas do cache trazem o cabeçalho Age.",
+        "operationId": "ObterResumoPublico",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumoPublico"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -540,6 +628,22 @@
           }
         },
         "description": "Credenciais de acesso."
+      },
+      "Feriado": {
+        "required": [
+          "data",
+          "nome"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "string",
+            "format": "date"
+          },
+          "nome": {
+            "type": "string"
+          }
+        }
       },
       "HttpValidationProblemDetails": {
         "type": "object",
@@ -583,6 +687,35 @@
                 "type": "string"
               }
             }
+          }
+        }
+      },
+      "LinhaPainel": {
+        "required": [
+          "prioridade",
+          "abertas",
+          "vencidas",
+          "proximoPrazo"
+        ],
+        "type": "object",
+        "properties": {
+          "prioridade": {
+            "$ref": "#/components/schemas/PrioridadeTarefa"
+          },
+          "abertas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vencidas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "proximoPrazo": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -663,6 +796,26 @@
             ]
           }
         }
+      },
+      "ResumoPublico": {
+        "required": [
+          "linhas",
+          "geradoEm"
+        ],
+        "type": "object",
+        "properties": {
+          "linhas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinhaPainel"
+            }
+          },
+          "geradoEm": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Resumo público e agregado das tarefas em aberto (sem dados pessoais)."
       },
       "Sessao": {
         "required": [
@@ -913,6 +1066,12 @@
     },
     {
       "name": "Autenticação"
+    },
+    {
+      "name": "Calendário"
+    },
+    {
+      "name": "Público"
     }
   ]
 }
