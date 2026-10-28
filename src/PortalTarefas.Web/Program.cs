@@ -1,12 +1,15 @@
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.WebEncoders;
+using PortalTarefas.Web.Dados;
 using PortalTarefas.Web.Endpoints;
 using PortalTarefas.Web.Filtros;
 using PortalTarefas.Web.Infraestrutura;
 using PortalTarefas.Web.Middlewares;
 using PortalTarefas.Web.Servicos;
+using PortalTarefas.Web.Servicos.Painel;
 using PortalTarefas.Web.Validacao;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,10 +37,25 @@ builder.Services.AddScoped<RegistrarExecucaoAcaoFilter>();
 builder.Services.Configure<WebEncoderOptions>(opcoes =>
     opcoes.TextEncoderSettings = new TextEncoderSettings(UnicodeRanges.All));
 
+// Persistência (Roteiro 3). A connection string vem de User Secrets em desenvolvimento
+// e de variáveis de ambiente nos demais ambientes; nunca do repositório.
+// AddDbContextPool reaproveita instâncias do contexto — seguro porque o contexto não guarda estado próprio.
+builder.Services.AddDbContextPool<PortalTarefasDbContext>((servicos, opcoes) =>
+{
+    var conexao = servicos.GetRequiredService<IConfiguration>().GetConnectionString("PortalTarefas");
+    if (string.IsNullOrWhiteSpace(conexao))
+        throw new InvalidOperationException(
+            "Connection string 'PortalTarefas' não configurada. Em desenvolvimento, use: " +
+            "dotnet user-secrets set \"ConnectionStrings:PortalTarefas\" \"<sua conexão>\" --project src/PortalTarefas.Web");
+    opcoes.UseSqlServer(conexao);
+});
+
 // Serviços da aplicação. O relógio é injetado para facilitar testes de datas.
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<ITarefaService, TarefaServiceEmMemoria>();
+builder.Services.AddScoped<ITarefaService, TarefaServiceEf>();
 builder.Services.AddScoped<ValidadorTituloUnico>();
+builder.Services.AddScoped<IConsultaPainel, ConsultaPainelEf>();
+builder.Services.AddScoped<IConsultaPainel, ConsultaPainelDapper>();
 
 // Política CORS nomeada: somente a origem do front-end local é aceita.
 const string PoliticaCorsFrontend = "FrontendLocal";
@@ -52,6 +70,17 @@ builder.Services.AddCors(opcoes =>
 });
 
 var app = builder.Build();
+
+// Aplica migrations pendentes e executa o seed idempotente, quando habilitado por configuração
+// (ligado em Development; em produção as migrations devem ser aplicadas por um passo controlado).
+if (app.Configuration.GetValue<bool>("Banco:AplicarMigrationsNaInicializacao"))
+{
+    await using var escopo = app.Services.CreateAsyncScope();
+    var db = escopo.ServiceProvider.GetRequiredService<PortalTarefasDbContext>();
+    await db.Database.MigrateAsync();
+    var inseridas = await SemeadorDados.ExecutarAsync(db, TimeProvider.System);
+    app.Logger.LogInformation("Banco atualizado; seed inseriu {Quantidade} tarefa(s)", inseridas);
+}
 
 // ---------------------------------------------------------------------------
 // 2. Pipeline HTTP — a ORDEM dos middlewares define o comportamento.

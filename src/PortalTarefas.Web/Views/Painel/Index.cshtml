@@ -1,0 +1,28 @@
+@model IReadOnlyList<PortalTarefas.Web.Controllers.ResultadoConsultaPainel>
+@{
+    ViewData["Title"] = "Painel";
+}
+<h1>Painel de tarefas em aberto</h1>
+<p>A mesma consulta implementada com EF Core (LINQ + projeção + AsNoTracking) e com Dapper (SQL parametrizado).</p>
+
+@foreach (var resultado in Model)
+{
+    <section class="cartao">
+        <h2>@resultado.Fonte <small>(@resultado.DuracaoMs.ToString("0.00") ms nesta execução)</small></h2>
+        <table class="tabela">
+            <thead><tr><th>Prioridade</th><th>Abertas</th><th>Vencidas</th><th>Próximo prazo</th></tr></thead>
+            <tbody>
+                @foreach (var linha in resultado.Linhas)
+                {
+                    <tr>
+                        <td>@linha.Prioridade.Exibir()</td>
+                        <td>@linha.Abertas</td>
+                        <td>@linha.Vencidas</td>
+                        <td>@(linha.ProximoPrazo?.ToString("dd/MM/yyyy") ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}
+<p><small>Tempos medidos localmente após uma execução de aquecimento; variam entre execuções e máquinas e não devem ser generalizados.</small></p>

@@ -17,3 +17,33 @@
     <a class="botao" asp-action="Edit" asp-route-id="@Model.Resumo.Id">Editar</a>
     <a asp-action="Index">Voltar à lista</a>
 </p>
+
+<section>
+    <h2>Alterar situação</h2>
+    <p>Grava a alteração e o evento de auditoria em uma única transação explícita.</p>
+    <form asp-action="AlterarSituacao" asp-route-id="@Model.Resumo.Id" method="post" class="filtros">
+        <label>
+            Nova situação
+            <select name="novaSituacao" asp-items="Html.GetEnumSelectList<SituacaoTarefa>()"></select>
+        </label>
+        <label>Observação <input name="observacao" maxlength="150" /></label>
+        <button type="submit">Alterar</button>
+    </form>
+</section>
+
+<section>
+    <h2>Histórico (auditoria)</h2>
+    @if (Model.Eventos.Count == 0)
+    {
+        <p>Nenhum evento registrado.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var evento in Model.Eventos)
+            {
+                <li>@evento.OcorridoEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") — <strong>@evento.Acao</strong> @evento.Detalhe</li>
+            }
+        </ul>
+    }
+</section>

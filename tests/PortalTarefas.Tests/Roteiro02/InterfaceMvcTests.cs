@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Mvc.Testing;
+using PortalTarefas.Tests.Apoio;
 
 namespace PortalTarefas.Tests.Roteiro02;
 
@@ -8,10 +8,10 @@ namespace PortalTarefas.Tests.Roteiro02;
 /// Testes de integração da interface MVC: renderização com layout compartilhado,
 /// acesso a id inexistente e envio de formulário inválido (com token antiforgery).
 /// </summary>
-public partial class InterfaceMvcTests(WebApplicationFactory<Program> fabrica)
-    : IClassFixture<WebApplicationFactory<Program>>
+public partial class InterfaceMvcTests(FabricaPortal fabrica)
+    : IClassFixture<FabricaPortal>
 {
-    private readonly HttpClient _cliente = fabrica.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+    private readonly HttpClient _cliente = fabrica.CriarClienteHttps();
 
     [Theory]
     [InlineData("/")]

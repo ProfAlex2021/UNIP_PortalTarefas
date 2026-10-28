@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+using PortalTarefas.Tests.Apoio;
 using PortalTarefas.Web.Dominio;
 using PortalTarefas.Web.Modelos;
 
@@ -10,10 +10,10 @@ namespace PortalTarefas.Tests.Roteiro01;
 /// Testes de integração do Roteiro 1: sobem a aplicação em memória
 /// (WebApplicationFactory) e exercitam o pipeline e os endpoints reais.
 /// </summary>
-public class PipelineEEndpointsTests(WebApplicationFactory<Program> fabrica)
-    : IClassFixture<WebApplicationFactory<Program>>
+public class PipelineEEndpointsTests(FabricaPortal fabrica)
+    : IClassFixture<FabricaPortal>
 {
-    private readonly HttpClient _cliente = fabrica.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+    private readonly HttpClient _cliente = fabrica.CriarClienteHttps();
 
     [Fact]
     public async Task Obter_por_id_existente_retorna_200()

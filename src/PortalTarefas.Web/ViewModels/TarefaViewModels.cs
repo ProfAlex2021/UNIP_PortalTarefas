@@ -19,4 +19,14 @@ public sealed class TarefasIndexViewModel
 }
 
 /// <summary>Modelo da página de detalhes.</summary>
-public sealed record TarefaDetalheViewModel(TarefaResumoViewModel Resumo, string? Descricao, DateTimeOffset CriadaEm);
+public sealed record TarefaDetalheViewModel(
+    TarefaResumoViewModel Resumo,
+    string? Descricao,
+    DateTimeOffset CriadaEm,
+    IReadOnlyList<EventoAuditoriaViewModel> Eventos);
+
+/// <summary>Linha do histórico de auditoria exibida nos detalhes.</summary>
+public sealed record EventoAuditoriaViewModel(string Acao, string? Detalhe, DateTimeOffset OcorridoEm)
+{
+    public static EventoAuditoriaViewModel De(EventoAuditoria e) => new(e.Acao, e.Detalhe, e.OcorridoEm);
+}

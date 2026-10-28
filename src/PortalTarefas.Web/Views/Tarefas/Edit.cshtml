@@ -2,10 +2,27 @@
 @{
     ViewData["Title"] = "Editar tarefa";
     var id = ViewContext.RouteData.Values["id"];
+    var atuais = ViewData["ValoresAtuais"] as TarefaInputModel;
 }
 <h1>Editar tarefa</h1>
 
+@if (atuais is not null)
+{
+    @* Exibido somente quando houve conflito de concorrência. *@
+    <section class="conflito" role="alert">
+        <h2>Valores atuais no banco</h2>
+        <dl class="detalhes">
+            <dt>Título</dt><dd>@atuais.Titulo</dd>
+            <dt>Descrição</dt><dd>@(atuais.Descricao ?? "(sem descrição)")</dd>
+            <dt>Prioridade</dt><dd>@atuais.Prioridade?.Exibir()</dd>
+            <dt>Prazo</dt><dd>@(atuais.Prazo?.ToString("dd/MM/yyyy") ?? "(sem prazo)")</dd>
+            <dt>Situação</dt><dd>@atuais.Situacao.Exibir()</dd>
+        </dl>
+    </section>
+}
+
 <form asp-action="Edit" asp-route-id="@id" method="post" novalidate>
+    <input asp-for="Versao" type="hidden" />
     <partial name="_Formulario" model="Model" />
     <button type="submit">Salvar alterações</button>
     <a asp-action="Details" asp-route-id="@id">Cancelar</a>

@@ -57,3 +57,7 @@ input, select, textarea, button { font: inherit; padding: .4rem; }
 .mensagem { background: #dff3e4; border-radius: 6px; padding: .6rem 1rem; }
 .detalhes dt { font-weight: 600; }
 .detalhes dd { margin: 0 0 .75rem; }
+
+.conflito { background: #fff4e5; border: 1px solid var(--cor-alerta); border-radius: 8px; padding: 0 1rem; margin-bottom: 1rem; }
+.tabela { border-collapse: collapse; width: 100%; }
+.tabela th, .tabela td { border-bottom: 1px solid var(--cor-borda); padding: .35rem .5rem; text-align: left; }

@@ -14,11 +14,13 @@ git diff roteiro-02 roteiro-03 --stat   # o que mudou de um roteiro para o outro
 |---|---|---|
 | 1 | Pipeline HTTP, middleware, roteamento, binding, Minimal APIs x MVC | [docs/roteiros/roteiro-01.md](docs/roteiros/roteiro-01.md) |
 | 2 | Controllers, validação, filtros e interfaces Razor reutilizáveis | [docs/roteiros/roteiro-02.md](docs/roteiros/roteiro-02.md) |
+| 3 | EF Core, migrations, seed, pooling, transações, concorrência e acesso leve | [docs/roteiros/roteiro-03.md](docs/roteiros/roteiro-03.md) |
 
 ## Ambiente
 
 - Visual Studio 2026 (18.x) com a carga de trabalho **ASP.NET e desenvolvimento Web**
 - SDK .NET 10 (fixado em `global.json`, com `rollForward: latestFeature`)
+- SQL Server LocalDB (Roteiro 3 em diante) e connection string em User Secrets — ver Roteiro 3
 
 ## Executar
 

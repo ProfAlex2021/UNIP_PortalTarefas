@@ -18,6 +18,10 @@ public sealed class TarefasController(
     ValidadorTituloUnico validadorTitulo,
     TimeProvider relogio) : Controller
 {
+    public const string MensagemConflito =
+        "Esta tarefa foi alterada por outra pessoa depois que você abriu o formulário. " +
+        "Nada foi sobrescrito. Confira os valores atuais abaixo e salve novamente se quiser manter os seus.";
+
     private DateOnly Hoje => DateOnly.FromDateTime(relogio.GetLocalNow().Date);
 
     // GET /Tarefas?busca=...&situacao=...
@@ -39,7 +43,12 @@ public sealed class TarefasController(
         if (tarefa is null)
             return NaoEncontrada(id);
 
-        return View(new TarefaDetalheViewModel(TarefaResumoViewModel.De(tarefa, Hoje), tarefa.Descricao, tarefa.CriadaEm));
+        var eventos = await servico.ListarEventosAsync(id, cancelamento);
+        return View(new TarefaDetalheViewModel(
+            TarefaResumoViewModel.De(tarefa, Hoje),
+            tarefa.Descricao,
+            tarefa.CriadaEm,
+            eventos.Select(EventoAuditoriaViewModel.De).ToList()));
     }
 
     // GET /Tarefas/Create
@@ -72,18 +81,52 @@ public sealed class TarefasController(
     [HttpPost]
     public async Task<IActionResult> Edit(int id, TarefaInputModel modelo, CancellationToken cancelamento)
     {
-        var tarefa = await servico.ObterAsync(id, cancelamento);
-        if (tarefa is null)
-            return NaoEncontrada(id);
+        if (!TentarLerVersao(modelo.Versao, out var versao))
+            ModelState.AddModelError(string.Empty, "Versão da tarefa ausente ou inválida. Abra a edição novamente.");
 
         await validadorTitulo.ValidarAsync(modelo, idAtual: id, ModelState, cancelamento);
         if (!ModelState.IsValid)
             return View(modelo);
 
-        modelo.AplicarEm(tarefa);
-        await servico.AtualizarAsync(tarefa, cancelamento);
+        var alterada = new Tarefa { Id = id, Versao = versao };
+        modelo.AplicarEm(alterada);
+        var resultado = await servico.AtualizarAsync(alterada, cancelamento);
 
-        TempData["Mensagem"] = "Alterações salvas.";
+        switch (resultado.Resultado)
+        {
+            case ResultadoOperacao.NaoEncontrada:
+                return NaoEncontrada(id);
+
+            case ResultadoOperacao.Conflito:
+                ModelState.AddModelError(string.Empty, MensagemConflito);
+                ViewData["ValoresAtuais"] = TarefaInputModel.De(resultado.Atual!);
+                // A nova versão permite salvar de novo, agora de forma consciente.
+                ModelState.Remove(nameof(TarefaInputModel.Versao));
+                modelo.Versao = Convert.ToBase64String(resultado.Atual!.Versao);
+                return View(modelo);
+
+            default:
+                TempData["Mensagem"] = "Alterações salvas.";
+                return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
+    // POST /Tarefas/AlterarSituacao/5 — usa a transação explícita do serviço.
+    [HttpPost]
+    public async Task<IActionResult> AlterarSituacao(int id, SituacaoTarefa novaSituacao, string? observacao,
+        CancellationToken cancelamento)
+    {
+        if (observacao?.Length > 150)
+        {
+            TempData["Mensagem"] = "A observação deve ter no máximo 150 caracteres.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var resultado = await servico.AlterarSituacaoAsync(id, novaSituacao, observacao, cancelamento);
+        if (resultado == ResultadoOperacao.NaoEncontrada)
+            return NaoEncontrada(id);
+
+        TempData["Mensagem"] = $"Situação alterada para {novaSituacao.Exibir()}.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -91,5 +134,15 @@ public sealed class TarefasController(
     {
         Response.StatusCode = StatusCodes.Status404NotFound;
         return View("NaoEncontrada", id);
+    }
+
+    private static bool TentarLerVersao(string? base64, out byte[] versao)
+    {
+        versao = [];
+        if (string.IsNullOrWhiteSpace(base64)) return false;
+        versao = new byte[base64.Length];
+        if (!Convert.TryFromBase64String(base64, versao, out var tamanho)) return false;
+        versao = versao[..tamanho];
+        return true;
     }
 }

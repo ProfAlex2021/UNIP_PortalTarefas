@@ -34,13 +34,20 @@ public sealed class TarefaInputModel
     [Display(Name = "Situação")]
     public SituacaoTarefa Situacao { get; set; } = SituacaoTarefa.Pendente;
 
+    /// <summary>
+    /// Token de concorrência (rowversion) em Base64, enviado em campo oculto na edição.
+    /// Permite detectar se outra pessoa alterou a tarefa depois que o formulário foi aberto.
+    /// </summary>
+    public string? Versao { get; set; }
+
     public static TarefaInputModel De(Tarefa t) => new()
     {
         Titulo = t.Titulo,
         Descricao = t.Descricao,
         Prioridade = t.Prioridade,
         Prazo = t.Prazo,
-        Situacao = t.Situacao
+        Situacao = t.Situacao,
+        Versao = Convert.ToBase64String(t.Versao)
     };
 
     public void AplicarEm(Tarefa t)
