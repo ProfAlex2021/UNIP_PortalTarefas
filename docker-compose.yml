@@ -1,0 +1,51 @@
+# Roteiro 8 — composição local: SQL Server + Portal de Tarefas (API + SPA em uma imagem).
+#
+#   copy .env.example .env      (e preencha MSSQL_SA_PASSWORD e SEED_ADMIN_SENHA)
+#   docker compose up -d --build
+#   curl http://localhost:8080/health/ready
+#   abrir http://localhost:8080/app/
+#
+# Os segredos vêm do arquivo .env (ignorado pelo Git) — nada é gravado na imagem.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD no arquivo .env}
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    volumes:
+      - dados-sql:/var/opt/mssql
+
+  portaltarefas:
+    build:
+      context: .
+      args:
+        COMMIT_SHA: ${COMMIT_SHA:-local}
+    image: portaltarefas:local
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Ambiente de TESTE local: aplica migrations, cria a admin e usa a dependência simulada.
+      ASPNETCORE_ENVIRONMENT: Staging
+      ConnectionStrings__PortalTarefas: "Server=sqlserver,1433;Database=PortalTarefas;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      Banco__AplicarMigrationsNaInicializacao: "true"
+      Simulacao__Habilitada: "true"
+      Dependencias__Calendario__UrlBase: "http://localhost:8080/simulacao/calendario/"
+      Proxy__ConfiarCabecalhosEncaminhados: "false"
+      SeedUsuarios__0__Email: admin@portaltarefas.local
+      SeedUsuarios__0__Nome: Administradora
+      SeedUsuarios__0__Papel: Administrador
+      SeedUsuarios__0__Equipe: Alfa
+      SeedUsuarios__0__EditarOutrasEquipes: "true"
+      SeedUsuarios__0__Senha: ${SEED_ADMIN_SENHA:?Defina SEED_ADMIN_SENHA no arquivo .env}
+
+volumes:
+  dados-sql:

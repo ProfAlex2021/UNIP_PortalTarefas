@@ -7,7 +7,8 @@ import "./estilos.css";
 
 createRoot(document.getElementById("raiz")!).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* basename acompanha o "base" do Vite: "/" em desenvolvimento e "/app/" no build integrado à API. */}
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ProvedorAutenticacao>
         <App />
       </ProvedorAutenticacao>

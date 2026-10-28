@@ -1,7 +1,10 @@
 using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using PortalTarefas.Web.Configuracao;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.WebEncoders;
 using PortalTarefas.Web.Api;
@@ -22,6 +25,11 @@ using PortalTarefas.Web.Servicos.Painel;
 using PortalTarefas.Web.Validacao;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configuração por ambiente (Roteiro 8). Precedência, da menor para a maior:
+// appsettings.json < appsettings.{Ambiente}.json < User Secrets (Development) < variáveis de ambiente < argumentos.
+// As opções obrigatórias são validadas na inicialização; a lista de variáveis está em .env.example.
+builder.Services.AddConfiguracaoValidada();
 
 // Logs, métricas e traces com OpenTelemetry (Roteiro 7).
 builder.AddObservabilidade();
@@ -71,15 +79,21 @@ builder.Services.Configure<WebEncoderOptions>(opcoes =>
 // Persistência (Roteiro 3). A connection string vem de User Secrets em desenvolvimento
 // e de variáveis de ambiente nos demais ambientes; nunca do repositório.
 // AddDbContextPool reaproveita instâncias do contexto — seguro porque o contexto não guarda estado próprio.
+// Sem a connection string, IOptions lança OptionsValidationException com a mensagem de OpcoesConexao.
 builder.Services.AddDbContextPool<PortalTarefasDbContext>((servicos, opcoes) =>
+    opcoes.UseSqlServer(servicos.GetRequiredService<IOptions<OpcoesConexao>>().Value.PortalTarefas));
+
+// Atrás de um proxy reverso/balanceador que termina o TLS (contêiner em produção),
+// confia nos cabeçalhos X-Forwarded-* para saber o esquema (https) e o IP original.
+if (builder.Configuration.GetValue<bool>("Proxy:ConfiarCabecalhosEncaminhados"))
 {
-    var conexao = servicos.GetRequiredService<IConfiguration>().GetConnectionString("PortalTarefas");
-    if (string.IsNullOrWhiteSpace(conexao))
-        throw new InvalidOperationException(
-            "Connection string 'PortalTarefas' não configurada. Em desenvolvimento, use: " +
-            "dotnet user-secrets set \"ConnectionStrings:PortalTarefas\" \"<sua conexão>\" --project src/PortalTarefas.Web");
-    opcoes.UseSqlServer(conexao);
-});
+    builder.Services.Configure<ForwardedHeadersOptions>(opcoes =>
+    {
+        opcoes.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        opcoes.KnownIPNetworks.Clear(); // a rede do proxy é definida pela infraestrutura
+        opcoes.KnownProxies.Clear();
+    });
+}
 
 // Serviços da aplicação. O relógio é injetado para facilitar testes de datas.
 builder.Services.AddSingleton(TimeProvider.System);
@@ -127,6 +141,10 @@ if (app.Configuration.GetValue<bool>("Banco:AplicarMigrationsNaInicializacao"))
 // ---------------------------------------------------------------------------
 // 2. Pipeline HTTP — a ORDEM dos middlewares define o comportamento.
 // ---------------------------------------------------------------------------
+
+// (0) Cabeçalhos do proxy reverso, antes de tudo que depende de esquema ou IP (Roteiro 8).
+if (app.Configuration.GetValue<bool>("Proxy:ConfiarCabecalhosEncaminhados"))
+    app.UseForwardedHeaders();
 
 // (1) Tratamento centralizado de exceções: primeiro, para envolver todo o restante.
 app.UseExceptionHandler();
@@ -197,6 +215,18 @@ api.MapDiagnosticoEndpoints();
 app.MapControllers();
 
 // Rota convencional da interface MVC: /{controller}/{action}/{id?}
+// Versão implantada (Roteiro 8): relaciona o que está rodando ao commit que gerou a imagem.
+app.MapGet("/versao", (IConfiguration configuracao, IWebHostEnvironment ambiente) => TypedResults.Ok(new
+{
+    versao = typeof(Program).Assembly.GetName().Version?.ToString(),
+    commit = configuracao["PORTALTAREFAS_COMMIT"] ?? "local",
+    ambiente = ambiente.EnvironmentName
+})).AllowAnonymous().ExcludeFromDescription();
+
+// SPA React integrada (Roteiro 8): o build do front-end é copiado para wwwroot/app na imagem.
+// Rotas do cliente como /app/tarefas/3 devolvem o index.html; o React Router decide o resto.
+app.MapFallbackToFile("app/{*caminho:nonfile}", "app/index.html").AllowAnonymous();
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

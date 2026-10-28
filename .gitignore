@@ -480,3 +480,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Build do front-end copiado pela imagem Docker (Roteiro 8)
+src/PortalTarefas.Web/wwwroot/app/
+
+# Variáveis locais com segredos (use .env.example como modelo)
+.env

@@ -1,2 +1,7 @@
 * text=auto
 *.sh text eol=lf
+
+# Arquivos gerados por ferramentas (OpenAPI no build, cliente NSwag): sempre LF,
+# para que regerá-los não altere o arquivo em nenhum sistema operacional.
+contratos/*.json text eol=lf
+src/PortalTarefas.Frontend/src/api/gerado/*.ts text eol=lf

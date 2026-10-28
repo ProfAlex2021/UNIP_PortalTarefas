@@ -1,0 +1,233 @@
+# Roteiro 8 — pipeline de CI/CD do Portal de Tarefas.
+#
+# CI (pull request e branch principal): restore/build/testes .NET com SDK explícito,
+#   verificação do contrato OpenAPI, npm ci/testes/build do front-end e análise de vulnerabilidades.
+# CD (somente na branch principal, depois de TODAS as verificações):
+#   imagem com tag = commit -> SBOM -> publicação no GHCR -> implantação em ambiente de teste
+#   (contêiner efêmero no runner) com smoke test e Health Check -> promoção para produção
+#   com aprovação manual (environment "producao").
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      falha_deliberada:
+        description: "Provocar uma falha de teste para demonstrar que a publicação é bloqueada"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  NODE_VERSION: "22.23.4"
+  IMAGEM: ghcr.io/${{ github.repository_owner }}/portaltarefas
+
+jobs:
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Back-end (.NET)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SDK .NET (versão explícita do global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: SQL Server efêmero para os testes de integração
+        run: |
+          # Senha gerada a cada execução: não existe segredo fixo no repositório.
+          SENHA="Ci$(openssl rand -hex 12)Aa1!"
+          echo "::add-mask::$SENHA"
+          docker run -d --name sql -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=$SENHA" -p 1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
+          for i in $(seq 1 40); do
+            docker exec sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$SENHA" -Q "SELECT 1" -b -o /dev/null && break
+            sleep 3
+          done
+          echo "PORTALTAREFAS_SQL_TESTES=Server=localhost,1433;User Id=sa;Password=$SENHA;TrustServerCertificate=True" >> "$GITHUB_ENV"
+
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore PortalTarefas.slnx
+
+      - name: Build
+        run: dotnet build PortalTarefas.slnx --configuration Release --no-restore
+
+      - name: Contrato OpenAPI versionado está atualizado
+        run: git diff --exit-code -- contratos/ || (echo "::error::O contrato mudou. Compile localmente e versione contratos/." && exit 1)
+
+      - name: Testes
+        env:
+          PORTALTAREFAS_FALHA_DELIBERADA: ${{ inputs.falha_deliberada && 'true' || '' }}
+        run: dotnet test PortalTarefas.slnx --configuration Release --no-build --logger "trx;LogFileName=resultados.trx" --results-directory TestResults
+
+      - name: Pacotes NuGet vulneráveis (bloqueia severidade alta ou crítica)
+        run: |
+          dotnet list src/PortalTarefas.Web package --vulnerable --include-transitive | tee vulneraveis.txt
+          if grep -qE "\b(High|Critical|Alta|Crítica)\b" vulneraveis.txt; then
+            echo "::error::Há dependências com vulnerabilidade alta ou crítica."; exit 1
+          fi
+
+      - name: Resultados dos testes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: resultados-testes-dotnet
+          path: TestResults/
+
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Front-end (React)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: src/PortalTarefas.Frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src/PortalTarefas.Frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - name: Dependências npm vulneráveis (bloqueia severidade alta ou crítica)
+        run: npm audit --omit=dev --audit-level=high
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: src/PortalTarefas.Frontend/dist/
+
+  # ---------------------------------------------------------------------------
+  publicar:
+    name: Imagem, SBOM e publicação
+    needs: [backend, frontend]          # só executa se TODAS as verificações passaram
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write                   # GITHUB_TOKEN de curta duração: sem credencial longa
+    outputs:
+      imagem: ${{ steps.tag.outputs.imagem }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: tag
+        run: echo "imagem=${IMAGEM,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build da imagem (tag = commit)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.tag.outputs.imagem }}
+          build-args: COMMIT_SHA=${{ github.sha }}
+
+      - name: SBOM (inventário de dependências da imagem)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.tag.outputs.imagem }}
+          format: spdx-json
+          artifact-name: sbom-portaltarefas.spdx.json
+
+      - name: Publicar no GitHub Container Registry
+        run: docker push "${{ steps.tag.outputs.imagem }}"
+
+  # ---------------------------------------------------------------------------
+  implantar-teste:
+    name: Implantação em ambiente de teste
+    needs: publicar
+    runs-on: ubuntu-24.04
+    environment: teste
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Subir banco e aplicação (contêineres efêmeros)
+        run: |
+          SENHA="Ci$(openssl rand -hex 12)Aa1!"; echo "::add-mask::$SENHA"
+          ADMIN="Adm$(openssl rand -hex 8)Z9"; echo "::add-mask::$ADMIN"
+          docker network create teste
+          docker run -d --name sqlserver --network teste -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=$SENHA" \
+            mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
+          for i in $(seq 1 40); do
+            docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$SENHA" -Q "SELECT 1" -b -o /dev/null && break
+            sleep 3
+          done
+          docker run -d --name app --network teste -p 8080:8080 \
+            -e ASPNETCORE_ENVIRONMENT=Staging \
+            -e "ConnectionStrings__PortalTarefas=Server=sqlserver,1433;Database=PortalTarefas;User Id=sa;Password=$SENHA;TrustServerCertificate=True" \
+            -e Banco__AplicarMigrationsNaInicializacao=true \
+            -e Simulacao__Habilitada=true \
+            -e Dependencias__Calendario__UrlBase=http://localhost:8080/simulacao/calendario/ \
+            -e SeedUsuarios__0__Email=admin@portaltarefas.local -e SeedUsuarios__0__Nome=Admin \
+            -e SeedUsuarios__0__Papel=Administrador -e SeedUsuarios__0__Equipe=Alfa \
+            -e "SeedUsuarios__0__Senha=$ADMIN" \
+            "${{ needs.publicar.outputs.imagem }}"
+
+      - name: Health Check e smoke test
+        run: |
+          for i in $(seq 1 30); do curl -fsS http://localhost:8080/health/ready && break; sleep 3; done
+          curl -fsS http://localhost:8080/health/live
+          curl -fsS http://localhost:8080/api/publico/painel
+          curl -fsS http://localhost:8080/app/ | grep -q '<div id="raiz">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/v1/tarefas)" = "401"
+          curl -fsS http://localhost:8080/versao | tee versao.json
+          grep -q "${{ github.sha }}" versao.json   # a versão implantada é a do commit
+
+      - name: Logs do contêiner em caso de falha
+        if: failure()
+        run: docker logs app | tail -100
+
+  # ---------------------------------------------------------------------------
+  promover-producao:
+    name: Promoção para produção (com aprovação)
+    needs: [publicar, implantar-teste]
+    runs-on: ubuntu-24.04
+    environment: producao               # configure "Required reviewers" neste environment no GitHub
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promover a mesma imagem testada (sem rebuild)
+        run: |
+          ORIGEM="${{ needs.publicar.outputs.imagem }}"
+          DESTINO="${ORIGEM%:*}:producao"
+          docker buildx imagetools create --tag "$DESTINO" "$ORIGEM"
+          echo "Produção agora aponta para $ORIGEM" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rollback: docker buildx imagetools create --tag $DESTINO <imagem:commit-anterior>" >> "$GITHUB_STEP_SUMMARY"

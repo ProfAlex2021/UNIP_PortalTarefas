@@ -1,0 +1,18 @@
+# Somente o necessário entra no contexto de build da imagem.
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.cert/
+**/*.user
+**/.vs/
+**/.vscode/
+**/TestResults/
+.git/
+.github/
+.claude/
+.env
+docs/
+tests/
+tools/
+src/PortalTarefas.Web/wwwroot/app/
