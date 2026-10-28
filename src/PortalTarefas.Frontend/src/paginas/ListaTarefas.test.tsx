@@ -13,6 +13,11 @@ vi.mock("../api/tarefasApi", async (original) => ({
 }));
 const listar = vi.mocked(tarefasApi.listar);
 
+// A lista consulta permissões da sessão; nos testes de componente a sessão é um dublê.
+vi.mock("../autenticacao/ContextoAutenticacao", () => ({
+  useAutenticacao: () => ({ pode: () => true }),
+}));
+
 const pagina = (itens: PaginaTarefas["itens"]): Resultado<PaginaTarefas> => ({
   ok: true,
   dados: { itens, pagina: 1, tamanho: 10, totalItens: itens.length, totalPaginas: itens.length ? 1 : 0 },
@@ -43,7 +48,7 @@ describe("ListaTarefas", () => {
   });
 
   it("mostra carregando e depois os itens (sucesso)", async () => {
-    listar.mockResolvedValue(pagina([{ id: 1, titulo: "Estudar React", situacao: "Pendente", prioridade: "Alta", prazo: undefined, vencida: false }]));
+    listar.mockResolvedValue(pagina([{ id: 1, titulo: "Estudar React", situacao: "Pendente", prioridade: "Alta", prazo: undefined, vencida: false, equipe: "Alfa" }]));
     renderizar("/tarefas?pagina=1");
 
     expect(screen.getByRole("status")).toHaveTextContent("Carregando tarefas");

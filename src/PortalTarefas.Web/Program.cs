@@ -12,6 +12,7 @@ using PortalTarefas.Web.Endpoints;
 using PortalTarefas.Web.Filtros;
 using PortalTarefas.Web.Infraestrutura;
 using PortalTarefas.Web.Middlewares;
+using PortalTarefas.Web.Seguranca;
 using PortalTarefas.Web.Servicos;
 using PortalTarefas.Web.Servicos.Painel;
 using PortalTarefas.Web.Validacao;
@@ -81,6 +82,9 @@ builder.Services.AddScoped<IConsultaPainel, ConsultaPainelEf>();
 builder.Services.AddScoped<IConsultaPainel, ConsultaPainelDapper>();
 builder.Services.AddScoped<TarefasApiServico>();
 
+// Autenticação e autorização (Roteiro 6): Identity + cookie, papéis, claims e políticas.
+builder.Services.AddSegurancaPortal();
+
 // Política CORS nomeada: somente a origem do front-end local é aceita.
 const string PoliticaCorsFrontend = "FrontendLocal";
 var origensPermitidas = builder.Configuration.GetSection("Cors:OrigensPermitidas").Get<string[]>() ?? [];
@@ -104,6 +108,7 @@ if (app.Configuration.GetValue<bool>("Banco:AplicarMigrationsNaInicializacao"))
     await db.Database.MigrateAsync();
     var inseridas = await SemeadorDados.ExecutarAsync(db, TimeProvider.System);
     app.Logger.LogInformation("Banco atualizado; seed inseriu {Quantidade} tarefa(s)", inseridas);
+    await SemeadorIdentidade.ExecutarAsync(escopo.ServiceProvider, app.Configuration, app.Logger);
 }
 
 // ---------------------------------------------------------------------------
@@ -138,9 +143,18 @@ app.UseRouting();
 // (8) CORS depois do roteamento e antes dos endpoints.
 app.UseCors(PoliticaCorsFrontend);
 
-// (9) Endpoints.
+// (9) Autenticação (quem é?) antes da autorização (pode?). Ambas depois do roteamento,
+//     para que a autorização conheça o endpoint e suas políticas, e antes dos endpoints.
+app.UseAuthentication();
+app.UseAuthorization();
+
+// (10) Proteção CSRF para chamadas à API que usam o cookie de sessão.
+app.UseMiddleware<ProtecaoCsrfMiddleware>();
+
+// (11) Endpoints.
 // API REST v1 (Roteiro 4) — contrato em docs/contrato-api-v1.md.
 app.MapTarefasApiV1();
+app.MapAutenticacao();
 
 // Documento OpenAPI e interface interativa (Scalar) somente em desenvolvimento.
 if (app.Environment.IsDevelopment())

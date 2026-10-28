@@ -1,9 +1,12 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using PortalTarefas.Tests.Apoio;
 using PortalTarefas.Web.Controllers;
 using PortalTarefas.Web.Dominio;
+using PortalTarefas.Web.Seguranca;
 using PortalTarefas.Web.Servicos;
 using PortalTarefas.Web.Validacao;
 using PortalTarefas.Web.ViewModels;
@@ -20,8 +23,12 @@ public class TarefasControllerTests
 
     private TarefasController CriarController()
     {
-        var contexto = new DefaultHttpContext();
-        return new TarefasController(_servico, new ValidadorTituloUnico(_servico), RelogioFixo.Padrao)
+        var contexto = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.Role, Papeis.Usuario), new Claim(TiposClaim.Equipe, "Alfa")], "Teste"))
+        };
+        return new TarefasController(_servico, new ValidadorTituloUnico(_servico), RelogioFixo.Padrao, new AutorizacaoPermitida())
         {
             ControllerContext = new ControllerContext { HttpContext = contexto },
             TempData = new TempDataDictionary(contexto, new TempDataEmMemoria())
@@ -87,6 +94,15 @@ public class TarefasControllerTests
         var view = Assert.IsType<ViewResult>(resultado);
         var modelo = Assert.IsType<TarefaDetalheViewModel>(view.Model);
         Assert.Equal(1, modelo.Resumo.Id);
+    }
+
+    /// <summary>Dublê: nos testes unitários a autorização sempre permite (ela é testada no Roteiro 6).</summary>
+    private sealed class AutorizacaoPermitida : IAuthorizationService
+    {
+        public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, IEnumerable<IAuthorizationRequirement> requirements) =>
+            Task.FromResult(AuthorizationResult.Success());
+        public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, string policyName) =>
+            Task.FromResult(AuthorizationResult.Success());
     }
 
     private sealed class TempDataEmMemoria : ITempDataProvider

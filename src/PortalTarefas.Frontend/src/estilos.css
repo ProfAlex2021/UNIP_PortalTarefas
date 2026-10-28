@@ -59,3 +59,8 @@ button:disabled { opacity: .5; cursor: default; }
 .mensagem { background: #dff3e4; border-radius: 6px; padding: .6rem 1rem; }
 .detalhes dt { font-weight: 600; }
 .detalhes dd { margin: 0 0 .75rem; }
+
+.sessao { margin-left: auto; display: flex; gap: .75rem; align-items: center; color: #fff; }
+.sessao a { color: #fff; }
+.sessao button { background: #fff; color: var(--cor-primaria); padding: .25rem .75rem; }
+button.perigo { background: var(--cor-erro); }

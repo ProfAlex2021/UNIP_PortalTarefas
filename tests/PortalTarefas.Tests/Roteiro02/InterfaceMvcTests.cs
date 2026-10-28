@@ -9,9 +9,13 @@ namespace PortalTarefas.Tests.Roteiro02;
 /// acesso a id inexistente e envio de formulário inválido (com token antiforgery).
 /// </summary>
 public partial class InterfaceMvcTests(FabricaPortal fabrica)
-    : IClassFixture<FabricaPortal>
+    : IClassFixture<FabricaPortal>, IAsyncLifetime
 {
-    private readonly HttpClient _cliente = fabrica.CriarClienteHttps();
+    // Desde o Roteiro 6 a API e as páginas exigem login: os testes usam um cliente autenticado.
+    private HttpClient _cliente = null!;
+
+    public async Task InitializeAsync() => _cliente = await fabrica.CriarClienteAutenticadoAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Theory]
     [InlineData("/")]

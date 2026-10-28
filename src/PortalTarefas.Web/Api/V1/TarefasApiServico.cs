@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using System.Security.Claims;
+using PortalTarefas.Web.Seguranca;
 using Microsoft.EntityFrameworkCore;
 using PortalTarefas.Web.Dados;
 using PortalTarefas.Web.Dominio;
@@ -34,7 +36,8 @@ public sealed class TarefasApiServico(PortalTarefasDbContext db, ITarefaService 
             .Take(p.Tamanho)
             .Select(t => new TarefaResumo(
                 t.Id, t.Titulo, t.Situacao, t.Prioridade, t.Prazo,
-                t.Prazo < hoje && t.Situacao != SituacaoTarefa.Concluida))
+                t.Prazo < hoje && t.Situacao != SituacaoTarefa.Concluida,
+                t.Equipe))
             .ToListAsync(cancelamento);
 
         var totalPaginas = (int)Math.Ceiling(total / (double)p.Tamanho);
@@ -47,17 +50,24 @@ public sealed class TarefasApiServico(PortalTarefasDbContext db, ITarefaService 
         return tarefa is null ? null : TarefaDetalhe.De(tarefa);
     }
 
+    /// <summary>Entidade usada na autorização por recurso (equipe / proprietário).</summary>
+    public Task<Tarefa?> ObterParaAutorizacaoAsync(int id, CancellationToken cancelamento) =>
+        servico.ObterAsync(id, cancelamento);
+
     public Task<bool> TituloEmUsoAsync(string titulo, int? ignorarId, CancellationToken cancelamento) =>
         servico.ExisteTituloEmAbertoAsync(titulo, ignorarId, cancelamento);
 
-    public async Task<TarefaDetalhe> CriarAsync(TarefaCriacao dto, CancellationToken cancelamento)
+    /// <summary>A tarefa nasce na equipe de quem a criou, e o criador fica registrado como proprietário.</summary>
+    public async Task<TarefaDetalhe> CriarAsync(TarefaCriacao dto, ClaimsPrincipal usuario, CancellationToken cancelamento)
     {
         var criada = await servico.CriarAsync(new Tarefa
         {
             Titulo = dto.Titulo.Trim(),
             Descricao = string.IsNullOrWhiteSpace(dto.Descricao) ? null : dto.Descricao.Trim(),
             Prioridade = dto.Prioridade,
-            Prazo = dto.Prazo
+            Prazo = dto.Prazo,
+            Equipe = usuario.ObterEquipe() ?? Tarefa.EquipePadrao,
+            CriadaPorId = usuario.ObterId()
         }, cancelamento);
         return TarefaDetalhe.De(criada);
     }

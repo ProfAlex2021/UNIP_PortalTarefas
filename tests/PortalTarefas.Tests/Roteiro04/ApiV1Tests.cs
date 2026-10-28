@@ -8,10 +8,14 @@ using PortalTarefas.Web.Dominio;
 namespace PortalTarefas.Tests.Roteiro04;
 
 /// <summary>Testes de integração da API REST v1 contra o contrato (docs/contrato-api-v1.md).</summary>
-public class ApiV1Tests(FabricaPortal fabrica) : IClassFixture<FabricaPortal>
+public class ApiV1Tests(FabricaPortal fabrica) : IClassFixture<FabricaPortal>, IAsyncLifetime
 {
     private const string Base = "/api/v1/tarefas";
-    private readonly HttpClient _cliente = fabrica.CriarClienteHttps();
+    // Desde o Roteiro 6 a API e as páginas exigem login: os testes usam um cliente autenticado.
+    private HttpClient _cliente = null!;
+
+    public async Task InitializeAsync() => _cliente = await fabrica.CriarClienteAutenticadoAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     private async Task<TarefaDetalhe> CriarAsync(string titulo, PrioridadeTarefa prioridade = PrioridadeTarefa.Baixa)
     {

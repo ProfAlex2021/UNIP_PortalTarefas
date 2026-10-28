@@ -155,6 +155,6 @@ public sealed class TarefaServiceEmMemoria : ITarefaService
     {
         Id = t.Id, Titulo = t.Titulo, Descricao = t.Descricao, Situacao = t.Situacao,
         Prioridade = t.Prioridade, Prazo = t.Prazo, CriadaEm = t.CriadaEm, AtualizadaEm = t.AtualizadaEm,
-        Versao = t.Versao.ToArray()
+        Versao = t.Versao.ToArray(), Equipe = t.Equipe, CriadaPorId = t.CriadaPorId
     };
 }

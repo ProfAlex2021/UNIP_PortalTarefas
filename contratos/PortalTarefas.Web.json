@@ -83,6 +83,16 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -134,7 +144,7 @@
           "Tarefas"
         ],
         "summary": "Cadastra uma tarefa",
-        "description": "Devolve 201 com o cabeçalho Location apontando para a nova tarefa.",
+        "description": "Devolve 201 com o cabeçalho Location apontando para a nova tarefa. Exige papel Usuario ou Administrador.",
         "operationId": "CriarTarefa",
         "requestBody": {
           "content": {
@@ -147,6 +157,16 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -176,6 +196,16 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -199,6 +229,16 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -236,7 +276,7 @@
           "Tarefas"
         ],
         "summary": "Atualiza todos os campos editáveis de uma tarefa",
-        "description": "Exige a 'versao' obtida no GET. Se a tarefa foi alterada por outra pessoa, devolve 409 com 'versaoAtual'.",
+        "description": "Exige a 'versao' obtida no GET. Se a tarefa foi alterada por outra pessoa, devolve 409 com 'versaoAtual'. Só edita quem é da mesma equipe, o criador da tarefa, quem tem a permissão tarefas.editar-outras-equipes ou um Administrador (403).",
         "operationId": "AtualizarTarefa",
         "parameters": [
           {
@@ -260,6 +300,16 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -290,6 +340,16 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -316,7 +376,7 @@
         "tags": [
           "Tarefas"
         ],
-        "summary": "Exclui uma tarefa",
+        "summary": "Exclui uma tarefa (somente Administrador)",
         "operationId": "ExcluirTarefa",
         "parameters": [
           {
@@ -330,6 +390,16 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -343,6 +413,16 @@
           "204": {
             "description": "No Content"
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -355,10 +435,112 @@
           }
         }
       }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Autentica com e-mail e senha e emite o cookie de sessão",
+        "operationId": "Entrar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credenciais"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sessao"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Encerra a sessão (invalida o cookie)",
+        "operationId": "Sair",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/auth/sessao": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Informa se há sessão ativa e as permissões do usuário",
+        "operationId": "ObterSessao",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sessao"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Credenciais": {
+        "required": [
+          "email",
+          "senha"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "senha": {
+            "type": "string"
+          }
+        },
+        "description": "Credenciais de acesso."
+      },
       "HttpValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -482,6 +664,54 @@
           }
         }
       },
+      "Sessao": {
+        "required": [
+          "autenticado",
+          "nome",
+          "email",
+          "equipe",
+          "papeis",
+          "permissoes"
+        ],
+        "type": "object",
+        "properties": {
+          "autenticado": {
+            "type": "boolean"
+          },
+          "nome": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "equipe": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "papeis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissoes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Políticas gerais atendidas pelo usuário (ex.: tarefas.criar, tarefas.excluir)."
+          }
+        },
+        "description": "Estado da sessão atual. As permissões são calculadas pelo servidor a partir das políticas."
+      },
       "SituacaoTarefa": {
         "enum": [
           "Pendente",
@@ -579,7 +809,8 @@
           "prazo",
           "criadaEm",
           "atualizadaEm",
-          "versao"
+          "versao",
+          "equipe"
         ],
         "type": "object",
         "properties": {
@@ -623,6 +854,10 @@
           "versao": {
             "type": "string",
             "description": "Token de concorrência (Base64). Envie-o de volta no PUT."
+          },
+          "equipe": {
+            "type": "string",
+            "description": "Equipe dona da tarefa. Editar tarefas de outra equipe exige permissão específica."
           }
         },
         "description": "Representação completa de uma tarefa."
@@ -634,7 +869,8 @@
           "situacao",
           "prioridade",
           "prazo",
-          "vencida"
+          "vencida",
+          "equipe"
         ],
         "type": "object",
         "properties": {
@@ -661,6 +897,10 @@
           "vencida": {
             "type": "boolean",
             "description": "Verdadeiro quando o prazo já passou e a tarefa não foi concluída."
+          },
+          "equipe": {
+            "type": "string",
+            "description": "Equipe dona da tarefa."
           }
         },
         "description": "Item da listagem de tarefas."
@@ -670,6 +910,9 @@
   "tags": [
     {
       "name": "Tarefas"
+    },
+    {
+      "name": "Autenticação"
     }
   ]
 }

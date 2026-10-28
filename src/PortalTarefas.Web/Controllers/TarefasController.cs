@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortalTarefas.Web.Dominio;
 using PortalTarefas.Web.Filtros;
+using PortalTarefas.Web.Seguranca;
 using PortalTarefas.Web.Servicos;
 using PortalTarefas.Web.Validacao;
 using PortalTarefas.Web.ViewModels;
@@ -13,10 +15,12 @@ namespace PortalTarefas.Web.Controllers;
 /// acesso a dados ficam no serviço e nos validadores.
 /// </summary>
 [ServiceFilter<RegistrarExecucaoAcaoFilter>] // escopo: só as ações deste controller
+[Authorize(Policy = Politicas.LerTarefas)]     // Roteiro 6: leitura privada
 public sealed class TarefasController(
     ITarefaService servico,
     ValidadorTituloUnico validadorTitulo,
-    TimeProvider relogio) : Controller
+    TimeProvider relogio,
+    IAuthorizationService autorizacao) : Controller
 {
     public const string MensagemConflito =
         "Esta tarefa foi alterada por outra pessoa depois que você abriu o formulário. " +
@@ -52,17 +56,19 @@ public sealed class TarefasController(
     }
 
     // GET /Tarefas/Create
+    [Authorize(Policy = Politicas.CriarTarefas)]
     public IActionResult Create() => View(new TarefaInputModel());
 
     // POST /Tarefas/Create
     [HttpPost]
+    [Authorize(Policy = Politicas.CriarTarefas)]
     public async Task<IActionResult> Create(TarefaInputModel modelo, CancellationToken cancelamento)
     {
         await validadorTitulo.ValidarAsync(modelo, idAtual: null, ModelState, cancelamento);
         if (!ModelState.IsValid)
             return View(modelo); // volta ao formulário preservando o que foi digitado
 
-        var tarefa = new Tarefa();
+        var tarefa = new Tarefa { Equipe = User.ObterEquipe() ?? Tarefa.EquipePadrao, CriadaPorId = User.ObterId() };
         modelo.AplicarEm(tarefa);
         var criada = await servico.CriarAsync(tarefa, cancelamento);
 
@@ -74,13 +80,19 @@ public sealed class TarefasController(
     public async Task<IActionResult> Edit(int id, CancellationToken cancelamento)
     {
         var tarefa = await servico.ObterAsync(id, cancelamento);
-        return tarefa is null ? NaoEncontrada(id) : View(TarefaInputModel.De(tarefa));
+        if (tarefa is null) return NaoEncontrada(id);
+        if (!await PodeEditarAsync(tarefa)) return Forbid();
+        return View(TarefaInputModel.De(tarefa));
     }
 
     // POST /Tarefas/Edit/5
     [HttpPost]
     public async Task<IActionResult> Edit(int id, TarefaInputModel modelo, CancellationToken cancelamento)
     {
+        var existente = await servico.ObterAsync(id, cancelamento);
+        if (existente is null) return NaoEncontrada(id);
+        if (!await PodeEditarAsync(existente)) return Forbid();
+
         if (!TentarLerVersao(modelo.Versao, out var versao))
             ModelState.AddModelError(string.Empty, "Versão da tarefa ausente ou inválida. Abra a edição novamente.");
 
@@ -88,7 +100,7 @@ public sealed class TarefasController(
         if (!ModelState.IsValid)
             return View(modelo);
 
-        var alterada = new Tarefa { Id = id, Versao = versao };
+        var alterada = new Tarefa { Id = id, Versao = versao, Equipe = existente.Equipe, CriadaPorId = existente.CriadaPorId };
         modelo.AplicarEm(alterada);
         var resultado = await servico.AtualizarAsync(alterada, cancelamento);
 
@@ -122,13 +134,19 @@ public sealed class TarefasController(
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var resultado = await servico.AlterarSituacaoAsync(id, novaSituacao, observacao, cancelamento);
-        if (resultado == ResultadoOperacao.NaoEncontrada)
-            return NaoEncontrada(id);
+        var existente = await servico.ObterAsync(id, cancelamento);
+        if (existente is null) return NaoEncontrada(id);
+        if (!await PodeEditarAsync(existente)) return Forbid();
+
+        await servico.AlterarSituacaoAsync(id, novaSituacao, observacao, cancelamento);
 
         TempData["Mensagem"] = $"Situação alterada para {novaSituacao.Exibir()}.";
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    /// <summary>Autorização por recurso: mesma política usada pela API.</summary>
+    private async Task<bool> PodeEditarAsync(Tarefa tarefa) =>
+        (await autorizacao.AuthorizeAsync(User, tarefa, Politicas.EditarTarefa)).Succeeded;
 
     private ViewResult NaoEncontrada(int id)
     {

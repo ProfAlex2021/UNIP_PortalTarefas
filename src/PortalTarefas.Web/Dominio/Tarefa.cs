@@ -32,6 +32,14 @@ public class Tarefa
     public DateTimeOffset CriadaEm { get; set; }
     public DateTimeOffset? AtualizadaEm { get; set; }
 
+    /// <summary>Equipe dona da tarefa (Roteiro 6): usada na política de edição.</summary>
+    public string Equipe { get; set; } = EquipePadrao;
+
+    /// <summary>Id do usuário que criou a tarefa (autorização por proprietário). Nulo para dados de seed.</summary>
+    public string? CriadaPorId { get; set; }
+
+    public const string EquipePadrao = "Alfa";
+
     /// <summary>Token de concorrência (rowversion no SQL Server), alterado pelo banco a cada UPDATE.</summary>
     public byte[] Versao { get; set; } = [];
 

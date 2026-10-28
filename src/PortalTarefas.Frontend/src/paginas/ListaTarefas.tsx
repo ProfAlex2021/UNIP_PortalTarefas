@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { CAMPOS_ORDENACAO, PRIORIDADES, SITUACOES, tarefasApi, type FiltrosListagem, type PrioridadeTarefa, type SituacaoTarefa } from "../api/tarefasApi";
+import { Permissoes } from "../api/autenticacaoApi";
+import { useAutenticacao } from "../autenticacao/ContextoAutenticacao";
 import { CartaoTarefa } from "../componentes/CartaoTarefa";
 import { EstadoRequisicaoView } from "../componentes/EstadoRequisicaoView";
 import { Paginacao } from "../componentes/Paginacao";
@@ -28,6 +30,7 @@ export function filtrosDaUrl(params: URLSearchParams): FiltrosListagem {
  */
 export function ListaTarefas() {
   const [params, setParams] = useSearchParams();
+  const { pode } = useAutenticacao();
   const filtros = filtrosDaUrl(params);
   const chave = params.size > 0 ? params.toString() : null;
 
@@ -128,7 +131,7 @@ export function ListaTarefas() {
         )}
       </EstadoRequisicaoView>
 
-      <p><Link className="botao" to="/tarefas/nova">Nova tarefa</Link></p>
+      {pode(Permissoes.criar) && <p><Link className="botao" to="/tarefas/nova">Nova tarefa</Link></p>}
     </section>
   );
 }

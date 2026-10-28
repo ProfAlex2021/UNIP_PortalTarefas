@@ -11,9 +11,13 @@ namespace PortalTarefas.Tests.Roteiro01;
 /// (WebApplicationFactory) e exercitam o pipeline e os endpoints reais.
 /// </summary>
 public class PipelineEEndpointsTests(FabricaPortal fabrica)
-    : IClassFixture<FabricaPortal>
+    : IClassFixture<FabricaPortal>, IAsyncLifetime
 {
-    private readonly HttpClient _cliente = fabrica.CriarClienteHttps();
+    // Desde o Roteiro 6 a API e as páginas exigem login: os testes usam um cliente autenticado.
+    private HttpClient _cliente = null!;
+
+    public async Task InitializeAsync() => _cliente = await fabrica.CriarClienteAutenticadoAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Obter_por_id_existente_retorna_200()

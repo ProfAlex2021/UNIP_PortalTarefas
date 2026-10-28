@@ -10,6 +10,7 @@ public sealed record ResultadoConsultaPainel(string Fonte, IReadOnlyList<LinhaPa
 /// Executa a mesma consulta de painel com EF Core e com Dapper e mostra os dois resultados
 /// lado a lado, com o tempo medido nesta máquina (medição local, não conclusão geral).
 /// </summary>
+[Microsoft.AspNetCore.Authorization.Authorize(Policy = PortalTarefas.Web.Seguranca.Politicas.LerTarefas)]
 public sealed class PainelController(IEnumerable<IConsultaPainel> consultas, TimeProvider relogio) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken cancelamento)

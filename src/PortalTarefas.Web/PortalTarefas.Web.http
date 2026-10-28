@@ -132,3 +132,53 @@ GET {{host}}/api/v1/tarefas/999999
 
 ### 25. Excluir (204)
 DELETE {{host}}/api/v1/tarefas/{{criada.response.body.$.id}}
+
+# =====================================================================
+# Roteiro 6 — Autenticação e autorização
+# Desde o Roteiro 6, as requisições acima exigem login: execute o item 26 antes.
+# A senha vem de User Secrets: dotnet user-secrets list --project src/PortalTarefas.Web
+# =====================================================================
+@email = ana@portaltarefas.local
+@senha = COLOQUE_AQUI_A_SENHA_DOS_USER_SECRETS
+
+### 26. Login (200 + cookie HttpOnly; o cliente .http guarda o cookie)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "senha": "{{senha}}"
+}
+
+### 27. Sessão atual (permissões calculadas pelo servidor)
+GET {{host}}/api/auth/sessao
+
+### 28. Login inválido (401, mensagem genérica)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "senha": "senha-errada"
+}
+
+### 29. Alteração com cookie SEM o cabeçalho anti-CSRF (403)
+POST {{host}}/api/v1/tarefas
+Content-Type: application/json
+
+{ "titulo": "Sem cabeçalho anti-CSRF" }
+
+### 30. Alteração com cookie e cabeçalho anti-CSRF (201 para Usuario/Administrador)
+POST {{host}}/api/v1/tarefas
+Content-Type: application/json
+X-Requested-With: PortalTarefas
+
+{ "titulo": "Criada com sessão de cookie" }
+
+### 31. Exclusão como usuário comum (403) — repita logado como admin para obter 204
+DELETE {{host}}/api/v1/tarefas/1
+X-Requested-With: PortalTarefas
+
+### 32. Logout (204) — depois disso, os itens acima respondem 401
+POST {{host}}/api/auth/logout
+X-Requested-With: PortalTarefas

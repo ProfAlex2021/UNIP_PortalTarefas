@@ -1,21 +1,28 @@
 import { Link } from "react-router";
-import { tarefasApi } from "../api/tarefasApi";
-import { EstadoRequisicaoView } from "../componentes/EstadoRequisicaoView";
+import { useAutenticacao } from "../autenticacao/ContextoAutenticacao";
 import { Titulo } from "../componentes/Titulo";
-import { useRequisicao } from "../hooks/useRequisicao";
 
-/** Tela inicial: faz uma chamada simples para confirmar que a API está acessível. */
+/**
+ * Tela inicial. A restauração da sessão (GET /api/auth/sessao, endpoint público) é a
+ * chamada simples que confirma o acesso à API.
+ */
 export function Inicio() {
-  const { estado, recarregar } = useRequisicao("inicio", (signal) => tarefasApi.listar({ tamanho: 1 }, signal));
+  const { sessao, restaurando } = useAutenticacao();
 
   return (
     <section>
       <Titulo>Portal de Tarefas</Titulo>
       <p>SPA React (Vite + TypeScript) consumindo a API v1 pelo cliente gerado com NSwag.</p>
 
-      <EstadoRequisicaoView estado={estado} idle={null} vazio={null} textoCarregando="Verificando a API…" onTentarNovamente={recarregar}>
-        {(pagina) => <p className="mensagem" role="status">API conectada: {pagina.totalItens} tarefa(s) cadastrada(s).</p>}
-      </EstadoRequisicaoView>
+      {restaurando ? (
+        <p className="estado" role="status" aria-live="polite">Verificando a API e a sessão…</p>
+      ) : sessao.autenticado ? (
+        <p className="mensagem" role="status">
+          Olá, {sessao.nome}! Equipe {sessao.equipe} · papéis: {sessao.papeis.join(", ")}.
+        </p>
+      ) : (
+        <p className="mensagem" role="status">API acessível. <Link to="/entrar">Entre</Link> para ver as tarefas.</p>
+      )}
 
       <ul>
         <li><Link to="/tarefas?pagina=1">Ver tarefas</Link></li>

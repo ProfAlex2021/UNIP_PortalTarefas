@@ -1,6 +1,9 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using PortalTarefas.Web.Seguranca;
 using PortalTarefas.Web.Servicos;
 
 namespace PortalTarefas.Web.Api.V1;
@@ -17,6 +20,9 @@ public static class TarefasApiEndpoints
     {
         var grupo = rotas.MapGroup("/api/v1/tarefas")
             .WithTags("Tarefas")
+            // Roteiro 6: leitura privada — toda a API exige usuário autenticado (401 se anônimo).
+            .RequireAuthorization(Politicas.LerTarefas)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         grupo.MapGet("/", Listar)
@@ -34,20 +40,26 @@ public static class TarefasApiEndpoints
         grupo.MapPost("/", Criar)
             .WithName("CriarTarefa")
             .WithSummary("Cadastra uma tarefa")
-            .WithDescription("Devolve 201 com o cabeçalho Location apontando para a nova tarefa.")
-            .ProducesValidationProblem();
+            .WithDescription("Devolve 201 com o cabeçalho Location apontando para a nova tarefa. Exige papel Usuario ou Administrador.")
+            .RequireAuthorization(Politicas.CriarTarefas)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         grupo.MapPut("/{id:int}", Atualizar)
             .WithName("AtualizarTarefa")
             .WithSummary("Atualiza todos os campos editáveis de uma tarefa")
-            .WithDescription("Exige a 'versao' obtida no GET. Se a tarefa foi alterada por outra pessoa, devolve 409 com 'versaoAtual'.")
+            .WithDescription("Exige a 'versao' obtida no GET. Se a tarefa foi alterada por outra pessoa, devolve 409 com 'versaoAtual'. " +
+                             "Só edita quem é da mesma equipe, o criador da tarefa, quem tem a permissão tarefas.editar-outras-equipes ou um Administrador (403).")
             .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         grupo.MapDelete("/{id:int}", Excluir)
             .WithName("ExcluirTarefa")
-            .WithSummary("Exclui uma tarefa")
+            .WithSummary("Exclui uma tarefa (somente Administrador)")
+            .RequireAuthorization(Politicas.ExcluirTarefas)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return rotas;
@@ -72,20 +84,29 @@ public static class TarefasApiEndpoints
     }
 
     private static async Task<Results<CreatedAtRoute<TarefaDetalhe>, ValidationProblem>> Criar(
-        TarefaCriacao dto, TarefasApiServico api, CancellationToken cancelamento)
+        TarefaCriacao dto, TarefasApiServico api, ClaimsPrincipal usuario, CancellationToken cancelamento)
     {
         // As Data Annotations e IValidatableObject já foram verificadas por AddValidation();
         // aqui fica apenas a regra que depende de dados.
         if (await api.TituloEmUsoAsync(dto.Titulo, null, cancelamento))
             return Problemas.TituloDuplicado();
 
-        var criada = await api.CriarAsync(dto, cancelamento);
+        var criada = await api.CriarAsync(dto, usuario, cancelamento);
         return TypedResults.CreatedAtRoute(criada, NomeObterTarefa, new { id = criada.Id });
     }
 
     private static async Task<Results<Ok<TarefaDetalhe>, ValidationProblem, ProblemHttpResult>> Atualizar(
-        int id, TarefaAtualizacao dto, TarefasApiServico api, CancellationToken cancelamento)
+        int id, TarefaAtualizacao dto, TarefasApiServico api, ClaimsPrincipal usuario,
+        IAuthorizationService autorizacao, CancellationToken cancelamento)
     {
+        // Autorização por recurso: depende da equipe/proprietário DESTA tarefa, por isso é
+        // avaliada aqui, depois de carregá-la, e não só por atributo no endpoint.
+        var existente = await api.ObterParaAutorizacaoAsync(id, cancelamento);
+        if (existente is null)
+            return Problemas.NaoEncontrada(id);
+        if (!(await autorizacao.AuthorizeAsync(usuario, existente, Politicas.EditarTarefa)).Succeeded)
+            return Problemas.SemPermissaoParaEditar();
+
         if (!TentarLerVersao(dto.Versao, out var versao))
             return TypedResults.ValidationProblem(new Dictionary<string, string[]>
             {
@@ -129,6 +150,11 @@ public static class TarefasApiEndpoints
             title: "A tarefa foi alterada por outra pessoa.",
             detail: "Nenhuma alteração foi gravada. Obtenha a tarefa novamente, revise e reenvie com a versão atual.",
             extensions: new Dictionary<string, object?> { ["versaoAtual"] = versaoAtual });
+
+        public static ProblemHttpResult SemPermissaoParaEditar() => TypedResults.Problem(
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Sem permissão para editar esta tarefa.",
+            detail: "A tarefa pertence a outra equipe. É necessária a permissão tarefas.editar-outras-equipes.");
 
         public static ValidationProblem TituloDuplicado() => TypedResults.ValidationProblem(
             new Dictionary<string, string[]> { ["titulo"] = ["Já existe uma tarefa em aberto com este título."] });

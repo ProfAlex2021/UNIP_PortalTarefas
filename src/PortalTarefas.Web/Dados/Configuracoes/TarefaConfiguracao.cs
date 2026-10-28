@@ -21,6 +21,10 @@ public sealed class TarefaConfiguracao : IEntityTypeConfiguration<Tarefa>
 
         tarefa.Property(t => t.CriadaEm).IsRequired();
 
+        // Roteiro 6: equipe dona da tarefa e usuário que a criou.
+        tarefa.Property(t => t.Equipe).IsRequired().HasMaxLength(50).HasDefaultValue(Tarefa.EquipePadrao);
+        tarefa.Property(t => t.CriadaPorId).HasMaxLength(450);
+
         // rowversion: o SQL Server gera um novo valor a cada UPDATE e o EF Core o usa
         // na cláusula WHERE para detectar alteração concorrente.
         tarefa.Property(t => t.Versao).IsRowVersion();

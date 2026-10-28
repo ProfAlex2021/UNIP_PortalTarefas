@@ -68,7 +68,9 @@ public sealed record TarefaResumo(
     PrioridadeTarefa Prioridade,
     DateOnly? Prazo,
     [property: Description("Verdadeiro quando o prazo já passou e a tarefa não foi concluída.")]
-    bool Vencida);
+    bool Vencida,
+    [property: Description("Equipe dona da tarefa.")]
+    string Equipe);
 
 [Description("Representação completa de uma tarefa.")]
 public sealed record TarefaDetalhe(
@@ -81,11 +83,13 @@ public sealed record TarefaDetalhe(
     DateTimeOffset CriadaEm,
     DateTimeOffset? AtualizadaEm,
     [property: Description("Token de concorrência (Base64). Envie-o de volta no PUT.")]
-    string Versao)
+    string Versao,
+    [property: Description("Equipe dona da tarefa. Editar tarefas de outra equipe exige permissão específica.")]
+    string Equipe)
 {
     public static TarefaDetalhe De(Tarefa t) => new(
         t.Id, t.Titulo, t.Descricao, t.Situacao, t.Prioridade, t.Prazo, t.CriadaEm, t.AtualizadaEm,
-        Convert.ToBase64String(t.Versao));
+        Convert.ToBase64String(t.Versao), t.Equipe);
 }
 
 [Description("Uma página de tarefas e os metadados de paginação.")]

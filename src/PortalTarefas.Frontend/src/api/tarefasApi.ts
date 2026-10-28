@@ -45,4 +45,6 @@ export const tarefasApi = {
 
   criar: (dados: TarefaCriacao, signal?: AbortSignal): Promise<Resultado<TarefaDetalhe>> =>
     executar((c) => c.criarTarefa(dados, signal)),
+
+  excluir: (id: number): Promise<Resultado<void>> => executar((c) => c.excluirTarefa(id)),
 };

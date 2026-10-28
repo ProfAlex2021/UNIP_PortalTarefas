@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
@@ -7,6 +8,14 @@ using PortalTarefas.Web.Dados;
 
 namespace PortalTarefas.Tests.Apoio;
 
+/// <summary>Usuários de teste criados pelo seed (mesmos e-mails de appsettings.Development.json).</summary>
+public enum Perfil
+{
+    Administrador = 0, // equipe Alfa, papel Administrador
+    UsuarioAlfa = 1,   // equipe Alfa, papel Usuario
+    UsuarioBeta = 2    // equipe Beta, papel Usuario
+}
+
 /// <summary>
 /// Sobe a aplicação em memória apontando para um banco de dados EXCLUSIVO, com nome
 /// aleatório, criado pelas migrations na inicialização e apagado ao final.
@@ -14,16 +23,29 @@ namespace PortalTarefas.Tests.Apoio;
 ///
 /// O servidor SQL vem da variável de ambiente PORTALTAREFAS_SQL_TESTES (usada no CI);
 /// sem ela, usa o SQL Server LocalDB instalado com o Visual Studio.
+/// As senhas dos usuários de teste são geradas a cada execução (nada fixo no repositório).
 /// </summary>
 public class FabricaPortal : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private const string ServidorPadrao = @"Server=(localdb)\MSSQLLocalDB;Integrated Security=true;TrustServerCertificate=True";
+
+    public static readonly IReadOnlyDictionary<Perfil, string> Emails = new Dictionary<Perfil, string>
+    {
+        [Perfil.Administrador] = "admin@portaltarefas.local",
+        [Perfil.UsuarioAlfa] = "ana@portaltarefas.local",
+        [Perfil.UsuarioBeta] = "bruno@portaltarefas.local",
+    };
+
+    private readonly Dictionary<Perfil, string> _senhas = Enum.GetValues<Perfil>()
+        .ToDictionary(p => p, _ => $"Teste{Guid.NewGuid():N}"[..20]);
 
     public string ConnectionString { get; } = new SqlConnectionStringBuilder(
         Environment.GetEnvironmentVariable("PORTALTAREFAS_SQL_TESTES") ?? ServidorPadrao)
     {
         InitialCatalog = $"PortalTarefas_Testes_{Guid.NewGuid():N}"
     }.ConnectionString;
+
+    public string SenhaDe(Perfil perfil) => _senhas[perfil];
 
     /// <summary>Configurações extras que classes derivadas podem acrescentar.</summary>
     protected virtual IEnumerable<KeyValuePair<string, string?>> ConfiguracoesAdicionais() => [];
@@ -33,16 +55,33 @@ public class FabricaPortal : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, configuracao) =>
         {
-            configuracao.AddInMemoryCollection(new Dictionary<string, string?>
+            var valores = new Dictionary<string, string?>
             {
                 ["ConnectionStrings:PortalTarefas"] = ConnectionString,
                 ["Banco:AplicarMigrationsNaInicializacao"] = "true",
-            }.Concat(ConfiguracoesAdicionais()));
+            };
+            foreach (var (perfil, senha) in _senhas)
+                valores[$"SeedUsuarios:{(int)perfil}:Senha"] = senha;
+
+            configuracao.AddInMemoryCollection(valores.Concat(ConfiguracoesAdicionais()));
         });
     }
 
     public HttpClient CriarClienteHttps() =>
         CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+
+    /// <summary>
+    /// Cliente que já fez login pela API (o cookie de sessão fica guardado no cliente)
+    /// e envia o cabeçalho anti-CSRF exigido nas operações que alteram dados.
+    /// </summary>
+    public async Task<HttpClient> CriarClienteAutenticadoAsync(Perfil perfil = Perfil.Administrador)
+    {
+        var cliente = CriarClienteHttps();
+        cliente.DefaultRequestHeaders.Add("X-Requested-With", "PortalTarefas");
+        var resposta = await cliente.PostAsJsonAsync("/api/auth/login", new { email = Emails[perfil], senha = SenhaDe(perfil) });
+        resposta.EnsureSuccessStatusCode();
+        return cliente;
+    }
 
     public Task InitializeAsync() => Task.CompletedTask;
 

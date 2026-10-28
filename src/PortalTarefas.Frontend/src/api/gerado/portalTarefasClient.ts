@@ -41,10 +41,28 @@ export interface IPortalTarefasClient {
     atualizarTarefa(id: number, body: TarefaAtualizacao, signal?: AbortSignal): Promise<TarefaDetalhe>;
 
     /**
-     * Exclui uma tarefa
+     * Exclui uma tarefa (somente Administrador)
      * @return No Content
      */
     excluirTarefa(id: number, signal?: AbortSignal): Promise<void>;
+
+    /**
+     * Autentica com e-mail e senha e emite o cookie de sessão
+     * @return OK
+     */
+    entrar(body: Credenciais, signal?: AbortSignal): Promise<Sessao>;
+
+    /**
+     * Encerra a sessão (invalida o cookie)
+     * @return No Content
+     */
+    sair(signal?: AbortSignal): Promise<void>;
+
+    /**
+     * Informa se há sessão ativa e as permissões do usuário
+     * @return OK
+     */
+    obterSessao(signal?: AbortSignal): Promise<Sessao>;
 }
 
 export class PortalTarefasClient implements IPortalTarefasClient {
@@ -128,6 +146,12 @@ export class PortalTarefasClient implements IPortalTarefasClient {
             result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HttpValidationProblemDetails;
             return throwException("Bad Request", status, _responseText, _headers, result400);
             });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
         } else if (status === 500) {
             return response.text().then((_responseText) => {
             let result500: any = null;
@@ -182,6 +206,18 @@ export class PortalTarefasClient implements IPortalTarefasClient {
             result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HttpValidationProblemDetails;
             return throwException("Bad Request", status, _responseText, _headers, result400);
             });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Forbidden", status, _responseText, _headers, result403);
+            });
         } else if (status === 500) {
             return response.text().then((_responseText) => {
             let result500: any = null;
@@ -228,6 +264,12 @@ export class PortalTarefasClient implements IPortalTarefasClient {
             let result200: any = null;
             result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as TarefaDetalhe;
             return result200;
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
             });
         } else if (status === 404) {
             return response.text().then((_responseText) => {
@@ -292,6 +334,18 @@ export class PortalTarefasClient implements IPortalTarefasClient {
             result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HttpValidationProblemDetails;
             return throwException("Bad Request", status, _responseText, _headers, result400);
             });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Forbidden", status, _responseText, _headers, result403);
+            });
         } else if (status === 404) {
             return response.text().then((_responseText) => {
             let result404: any = null;
@@ -319,7 +373,7 @@ export class PortalTarefasClient implements IPortalTarefasClient {
     }
 
     /**
-     * Exclui uma tarefa
+     * Exclui uma tarefa (somente Administrador)
      * @return No Content
      */
     excluirTarefa(id: number, signal?: AbortSignal): Promise<void> {
@@ -348,6 +402,18 @@ export class PortalTarefasClient implements IPortalTarefasClient {
             return response.text().then((_responseText) => {
             return;
             });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status === 403) {
+            return response.text().then((_responseText) => {
+            let result403: any = null;
+            result403 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Forbidden", status, _responseText, _headers, result403);
+            });
         } else if (status === 404) {
             return response.text().then((_responseText) => {
             let result404: any = null;
@@ -367,6 +433,141 @@ export class PortalTarefasClient implements IPortalTarefasClient {
         }
         return Promise.resolve<void>(null as any);
     }
+
+    /**
+     * Autentica com e-mail e senha e emite o cookie de sessão
+     * @return OK
+     */
+    entrar(body: Credenciais, signal?: AbortSignal): Promise<Sessao> {
+        let url_ = this.baseUrl + "/api/auth/login";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(body);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            signal,
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processEntrar(_response);
+        });
+    }
+
+    protected processEntrar(response: Response): Promise<Sessao> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Sessao;
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            result400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as HttpValidationProblemDetails;
+            return throwException("Bad Request", status, _responseText, _headers, result400);
+            });
+        } else if (status === 401) {
+            return response.text().then((_responseText) => {
+            let result401: any = null;
+            result401 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as ProblemDetails;
+            return throwException("Unauthorized", status, _responseText, _headers, result401);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Sessao>(null as any);
+    }
+
+    /**
+     * Encerra a sessão (invalida o cookie)
+     * @return No Content
+     */
+    sair(signal?: AbortSignal): Promise<void> {
+        let url_ = this.baseUrl + "/api/auth/logout";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            signal,
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSair(_response);
+        });
+    }
+
+    protected processSair(response: Response): Promise<void> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 204) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    /**
+     * Informa se há sessão ativa e as permissões do usuário
+     * @return OK
+     */
+    obterSessao(signal?: AbortSignal): Promise<Sessao> {
+        let url_ = this.baseUrl + "/api/auth/sessao";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            signal,
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processObterSessao(_response);
+        });
+    }
+
+    protected processObterSessao(response: Response): Promise<Sessao> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as Sessao;
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<Sessao>(null as any);
+    }
+}
+
+/** Credenciais de acesso. */
+export interface Credenciais {
+    email: string;
+    senha: string;
+
+    [key: string]: any;
 }
 
 export interface HttpValidationProblemDetails {
@@ -399,6 +600,19 @@ export interface ProblemDetails {
     status?: number | undefined;
     detail?: string | undefined;
     instance?: string | undefined;
+
+    [key: string]: any;
+}
+
+/** Estado da sessão atual. As permissões são calculadas pelo servidor a partir das políticas. */
+export interface Sessao {
+    autenticado: boolean;
+    nome: string | undefined;
+    email: string | undefined;
+    equipe: string | undefined;
+    papeis: string[];
+    /** Políticas gerais atendidas pelo usuário (ex.: tarefas.criar, tarefas.excluir). */
+    permissoes: string[];
 
     [key: string]: any;
 }
@@ -444,6 +658,8 @@ export interface TarefaDetalhe {
     atualizadaEm: string | undefined;
     /** Token de concorrência (Base64). Envie-o de volta no PUT. */
     versao: string;
+    /** Equipe dona da tarefa. Editar tarefas de outra equipe exige permissão específica. */
+    equipe: string;
 
     [key: string]: any;
 }
@@ -457,6 +673,8 @@ export interface TarefaResumo {
     prazo: string | undefined;
     /** Verdadeiro quando o prazo já passou e a tarefa não foi concluída. */
     vencida: boolean;
+    /** Equipe dona da tarefa. */
+    equipe: string;
 
     [key: string]: any;
 }

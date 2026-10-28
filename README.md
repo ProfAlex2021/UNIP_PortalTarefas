@@ -17,6 +17,7 @@ git diff roteiro-02 roteiro-03 --stat   # o que mudou de um roteiro para o outro
 | 3 | EF Core, migrations, seed, pooling, transações, concorrência e acesso leve | [docs/roteiros/roteiro-03.md](docs/roteiros/roteiro-03.md) |
 | 4 | Recursos REST, paginação, filtros, Problem Details, OpenAPI e cliente TypeScript | [docs/roteiros/roteiro-04.md](docs/roteiros/roteiro-04.md) |
 | 5 | Front-end React consumindo a API com estados de requisição e roteamento | [docs/roteiros/roteiro-05.md](docs/roteiros/roteiro-05.md) |
+| 6 | ASP.NET Core Identity, cookies, tokens bearer, JWT, roles, claims e rotas protegidas | [docs/roteiros/roteiro-06.md](docs/roteiros/roteiro-06.md) |
 
 ## Ambiente
 
@@ -24,6 +25,7 @@ git diff roteiro-02 roteiro-03 --stat   # o que mudou de um roteiro para o outro
 - SDK .NET 10 (fixado em `global.json`, com `rollForward: latestFeature`)
 - SQL Server LocalDB (Roteiro 3 em diante) e connection string em User Secrets — ver Roteiro 3
 - Node.js LTS (22.x) e npm — cliente TypeScript (Roteiro 4) e front-end React (Roteiro 5)
+- Senhas dos usuários de teste em User Secrets (Roteiro 6) — ver Roteiro 6
 
 ## Executar
 

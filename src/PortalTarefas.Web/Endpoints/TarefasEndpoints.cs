@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PortalTarefas.Web.Dominio;
 using PortalTarefas.Web.Modelos;
+using PortalTarefas.Web.Seguranca;
 using PortalTarefas.Web.Servicos;
 
 namespace PortalTarefas.Web.Endpoints;
@@ -16,11 +18,12 @@ public static class TarefasEndpoints
     public static IEndpointRouteBuilder MapTarefasEndpoints(this IEndpointRouteBuilder rotas)
     {
         // Legado do Roteiro 1: mantido para comparação, fora do documento OpenAPI (a API oficial é a v1).
-        var grupo = rotas.MapGroup("/tarefas").WithTags("Roteiro 1").ExcludeFromDescription();
+        var grupo = rotas.MapGroup("/tarefas").WithTags("Roteiro 1").ExcludeFromDescription()
+            .RequireAuthorization(Politicas.LerTarefas); // Roteiro 6: sem porta lateral sem autorização
 
         grupo.MapGet("/", Listar).WithName("R1_ListarTarefas");
         grupo.MapGet("/{id:int}", ObterPorId).WithName("R1_ObterTarefa");
-        grupo.MapPost("/", Cadastrar).WithName("R1_CadastrarTarefa");
+        grupo.MapPost("/", Cadastrar).WithName("R1_CadastrarTarefa").RequireAuthorization(Politicas.CriarTarefas);
 
         return rotas;
     }
@@ -58,12 +61,14 @@ public static class TarefasEndpoints
     // POST /api/tarefas  { "titulo": "...", "descricao": "..." }
     // A validação das Data Annotations ocorre antes (AddValidation) e devolve 400 automaticamente.
     private static async Task<Created<TarefaDto>> Cadastrar(
-        [FromBody] NovaTarefaRequest requisicao, ITarefaService servico, CancellationToken cancelamento)
+        [FromBody] NovaTarefaRequest requisicao, ITarefaService servico, ClaimsPrincipal usuario, CancellationToken cancelamento)
     {
         var criada = await servico.CriarAsync(new Tarefa
         {
             Titulo = requisicao.Titulo.Trim(),
-            Descricao = requisicao.Descricao
+            Descricao = requisicao.Descricao,
+            Equipe = usuario.ObterEquipe() ?? Tarefa.EquipePadrao,
+            CriadaPorId = usuario.ObterId()
         }, cancelamento);
         return TypedResults.Created($"/api/tarefas/{criada.Id}", TarefaDto.De(criada));
     }

@@ -24,7 +24,7 @@ public static class SemeadorDados
                     Situacao = SituacaoTarefa.Pendente, Prioridade = PrioridadeTarefa.Alta, Prazo = hoje.AddDays(-2) },
             new() { Titulo = "Revisar migrations do EF Core", Descricao = "Conferir o SQL gerado antes de aplicar",
                     Situacao = SituacaoTarefa.Pendente, Prioridade = PrioridadeTarefa.Media, Prazo = hoje.AddDays(7) },
-            new() { Titulo = "Comparar EF Core e Dapper",
+            new() { Titulo = "Comparar EF Core e Dapper", Equipe = "Beta",
                     Situacao = SituacaoTarefa.Pendente, Prioridade = PrioridadeTarefa.Baixa },
         ];
 
